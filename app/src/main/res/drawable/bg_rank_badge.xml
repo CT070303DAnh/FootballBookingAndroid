@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- bg_rank_badge.xml — Badge #1, #2, #3 với màu gradient vàng/bạc/đồng -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:type="linear"
+        android:angle="135"
+        android:startColor="#FFD700"
+        android:endColor="#FFA000" />
+</shape>

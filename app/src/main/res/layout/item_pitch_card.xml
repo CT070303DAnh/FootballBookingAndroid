@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- item_pitch_card.xml — Card hiển thị 1 sân trong RecyclerView -->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/CardStyle"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Ảnh sân -->
+        <ImageView
+            android:id="@+id/iv_pitch_image"
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="Ảnh sân bóng"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:src="@android:drawable/ic_menu_compass" />
+
+        <!-- Overlay tối dưới ảnh để hiện chữ -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:background="@drawable/bg_image_overlay"
+            app:layout_constraintBottom_toBottomOf="@+id/iv_pitch_image"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Badge loại sân (Sân 5/7/11) — góc trên trái -->
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_pitch_type"
+            style="@style/Widget.Material3.Chip.Assist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:text="Sân 5"
+            android:textColor="@color/white"
+            app:chipBackgroundColor="#CC1B5E20"
+            app:chipStrokeWidth="0dp"
+            app:layout_constraintTop_toTopOf="@+id/iv_pitch_image"
+            app:layout_constraintStart_toStartOf="@+id/iv_pitch_image"
+            tools:text="Sân 7 người" />
+
+        <!-- Badge trạng thái — góc trên phải -->
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_status"
+            style="@style/Widget.Material3.Chip.Assist"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:text="Còn sân"
+            android:textColor="@color/white"
+            app:chipBackgroundColor="#CC10B981"
+            app:chipStrokeWidth="0dp"
+            app:layout_constraintTop_toTopOf="@+id/iv_pitch_image"
+            app:layout_constraintEnd_toEndOf="@+id/iv_pitch_image"
+            tools:text="Còn sân" />
+
+        <!-- Content phía dưới -->
+        <LinearLayout
+            android:id="@+id/layout_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp"
+            app:layout_constraintTop_toBottomOf="@+id/iv_pitch_image"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <!-- Tên sân -->
+            <TextView
+                android:id="@+id/tv_pitch_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Sân bóng Mỹ Đình A" />
+
+            <!-- Địa chỉ -->
+            <TextView
+                android:id="@+id/tv_pitch_address"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginTop="4dp"
+                android:drawablePadding="4dp"
+                tools:text="📍 Số 1, Lê Đức Thọ, Nam Từ Liêm, Hà Nội" />
+
+            <!-- Row: Rating + Giá + Khoảng cách -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="10dp">
+
+                <!-- Rating stars -->
+                <RatingBar
+                    android:id="@+id/rating_bar"
+                    style="?android:attr/ratingBarStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:isIndicator="true"
+                    android:numStars="5"
+                    android:stepSize="0.5"
+                    android:progressTint="@color/star_filled"
+                    android:secondaryProgressTint="@color/star_empty"
+                    tools:rating="4.5" />
+
+                <TextView
+                    android:id="@+id/tv_rating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginStart="4dp"
+                    tools:text="4.8 (128)" />
+
+                <!-- Spacer -->
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <!-- Khoảng cách -->
+                <TextView
+                    android:id="@+id/tv_distance"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="12dp"
+                    tools:text="📍 1.2 km" />
+
+                <!-- Giá -->
+                <TextView
+                    android:id="@+id/tv_price"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/accent"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="150k/h" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

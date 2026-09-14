@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===== COLOR PALETTE ===== -->
+    <!-- Primary: Xanh lá bóng đá hiện đại -->
+    <color name="primary">#1B5E20</color>
+    <color name="primary_dark">#003300</color>
+    <color name="primary_light">#4CAF50</color>
+    <color name="primary_variant">#2E7D32</color>
+
+    <!-- Accent: Vàng nổi bật -->
+    <color name="accent">#FFD600</color>
+    <color name="accent_dark">#C6A800</color>
+
+    <!-- Background: Dark modern -->
+    <color name="background_dark">#0D1117</color>
+    <color name="background_card">#161B22</color>
+    <color name="background_surface">#1C2128</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#8B949E</color>
+    <color name="text_hint">#484F58</color>
+
+    <!-- Status colors -->
+    <color name="status_pending">#F59E0B</color>   <!-- Chờ duyệt: Vàng -->
+    <color name="status_approved">#10B981</color>  <!-- Đã duyệt: Xanh lá -->
+    <color name="status_rejected">#EF4444</color>  <!-- Từ chối: Đỏ -->
+    <color name="status_cancelled">#6B7280</color> <!-- Đã hủy: Xám -->
+
+    <!-- Match status -->
+    <color name="match_playing">#EF4444</color>    <!-- Đang đá: Đỏ live -->
+    <color name="match_upcoming">#3B82F6</color>   <!-- Sắp đá: Xanh dương -->
+    <color name="match_finished">#6B7280</color>   <!-- Đã xong: Xám -->
+
+    <!-- UI Components -->
+    <color name="divider">#21262D</color>
+    <color name="input_background">#21262D</color>
+    <color name="overlay">#80000000</color>
+    <color name="ripple">#3300FF41</color>
+
+    <!-- Star rating -->
+    <color name="star_filled">#FFD600</color>
+    <color name="star_empty">#484F58</color>
+
+    <!-- White/Black -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+</resources>

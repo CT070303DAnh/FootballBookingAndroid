@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fragment_owner_profile.xml -->
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark"
+    android:overScrollMode="never"
+    android:paddingBottom="80dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header cam -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:background="@drawable/bg_owner_header"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_owner_avatar"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:src="@android:drawable/ic_menu_myplaces"
+                app:civ_border_width="3dp"
+                app:civ_border_color="@color/white" />
+
+            <TextView
+                android:id="@+id/tv_owner_profile_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                tools:text="Nguyễn Văn Bình" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_owner_status"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✓ Chủ sân đã xác minh"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                app:chipBackgroundColor="#44FFFFFF"
+                app:chipStrokeWidth="0dp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- Info card -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Thông tin liên hệ"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" android:layout_marginBottom="12dp" />
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:layout_marginBottom="10dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="📧 Email"
+                        android:textColor="@color/text_secondary" android:textSize="13sp" />
+                    <TextView android:id="@+id/tv_owner_profile_email"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary" android:textSize="13sp"
+                        tools:text="owner@gmail.com" />
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="📞 Điện thoại"
+                        android:textColor="@color/text_secondary" android:textSize="13sp" />
+                    <TextView android:id="@+id/tv_owner_profile_phone"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary" android:textSize="13sp"
+                        tools:text="0912 345 678" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Logout -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_owner_logout"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="8dp"
+            android:text="Đăng xuất"
+            android:textColor="@color/status_rejected"
+            app:strokeColor="@color/status_rejected" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

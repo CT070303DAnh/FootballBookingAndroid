@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- item_admin_booking_card.xml — Card đơn đặt sân cho Admin (có nút Duyệt/Từ chối) -->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/CardStyle"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="14dp"
+            android:paddingBottom="8dp"
+            android:gravity="center_vertical">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_admin_booking_status"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Chờ duyệt"
+                android:textColor="@color/white"
+                app:chipBackgroundColor="@color/status_pending"
+                app:chipStrokeWidth="0dp"
+                tools:text="Chờ duyệt" />
+
+            <View android:layout_width="0dp" android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tv_admin_booking_id"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_hint"
+                android:textSize="11sp"
+                tools:text="#BK001234" />
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:background="@color/divider" />
+
+        <!-- Customer info -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="14dp"
+            android:paddingBottom="8dp"
+            android:gravity="center_vertical">
+
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_admin_customer_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    tools:text="Nguyễn Văn A" />
+
+                <TextView
+                    android:id="@+id/tv_admin_customer_phone"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginTop="2dp"
+                    tools:text="📞 0912 345 678" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_admin_total"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/accent"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="200.000đ" />
+        </LinearLayout>
+
+        <!-- Pitch & Time info -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="14dp"
+            app:cardBackgroundColor="@color/background_surface"
+            app:cardCornerRadius="10dp"
+            app:strokeWidth="0dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="horizontal">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Sân"
+                        android:textColor="@color/text_hint" android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_admin_pitch_name"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary" android:textSize="13sp"
+                        android:textStyle="bold" tools:text="Sân Mỹ Đình A (7 người)" />
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Ngày"
+                        android:textColor="@color/text_hint" android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_admin_booking_date"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary" android:textSize="13sp"
+                        tools:text="Thứ 6, 15/06/2025" />
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Giờ"
+                        android:textColor="@color/text_hint" android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_admin_booking_time"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/primary_light" android:textSize="13sp"
+                        android:textStyle="bold" tools:text="18:00 - 19:30" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Ghi chú -->
+        <TextView
+            android:id="@+id/tv_admin_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:paddingHorizontal="14dp"
+            android:paddingTop="8dp"
+            android:visibility="gone"
+            tools:text="📝 Ghi chú: Cần 2 quả bóng thêm"
+            tools:visibility="visible" />
+
+        <!-- Match Status row (chỉ hiện khi đã duyệt) -->
+        <LinearLayout
+            android:id="@+id/layout_match_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingTop="10dp"
+            android:gravity="center_vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Trạng thái trận:"
+                android:textColor="@color/text_secondary" android:textSize="12sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_match_upcoming"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content" android:layout_height="32dp"
+                android:text="Sắp đá" android:textSize="11sp"
+                android:layout_marginStart="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_match_playing"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content" android:layout_height="32dp"
+                android:text="🔴 Đang đá" android:textSize="11sp"
+                android:layout_marginStart="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_match_finished"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content" android:layout_height="32dp"
+                android:text="✓ Kết thúc" android:textSize="11sp"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
+        <!-- Action buttons: Duyệt / Từ chối -->
+        <LinearLayout
+            android:id="@+id/layout_admin_actions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="14dp"
+            android:paddingTop="12dp"
+            android:gravity="end"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_reject"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✗ Từ chối"
+                android:textColor="@color/status_rejected"
+                app:strokeColor="@color/status_rejected"
+                android:layout_marginEnd="10dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_approve"
+                style="@style/Button.Primary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✓ Duyệt đơn" />
+        </LinearLayout>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

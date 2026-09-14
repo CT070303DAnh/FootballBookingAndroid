@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- item_booking_history.xml — 1 đơn trong lịch sử đặt sân -->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/CardStyle"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header: trạng thái booking -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="14dp"
+            android:paddingBottom="10dp"
+            android:gravity="center_vertical">
+
+            <!-- Trạng thái (màu khác nhau theo status) -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_booking_status"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Chờ duyệt"
+                android:textColor="@color/white"
+                app:chipBackgroundColor="@color/status_pending"
+                app:chipStrokeWidth="0dp"
+                tools:text="Đã duyệt" />
+
+            <!-- Match status (chỉ hiện khi approved) -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_match_status"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="🔴 Đang đá"
+                android:textColor="@color/white"
+                app:chipBackgroundColor="@color/match_playing"
+                app:chipStrokeWidth="0dp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
+            <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+            <!-- Ngày đặt -->
+            <TextView
+                android:id="@+id/tv_booking_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                tools:text="15/06/2025" />
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:background="@color/divider" />
+
+        <!-- Content: tên sân + thời gian -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="14dp"
+            android:gravity="center_vertical">
+
+            <!-- Icon sân -->
+            <TextView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="🏟️"
+                android:textSize="28sp"
+                android:gravity="center"
+                android:background="@drawable/bg_skeleton_item" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="12dp">
+
+                <TextView
+                    android:id="@+id/tv_history_pitch_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    tools:text="Sân Mỹ Đình A" />
+
+                <!-- Giờ đá -->
+                <TextView
+                    android:id="@+id/tv_history_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/primary_light"
+                    android:textSize="13sp"
+                    android:layout_marginTop="3dp"
+                    tools:text="🕕 18:00 - 19:30" />
+
+                <!-- Địa chỉ -->
+                <TextView
+                    android:id="@+id/tv_history_address"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:layout_marginTop="2dp"
+                    tools:text="📍 Nam Từ Liêm, Hà Nội" />
+            </LinearLayout>
+
+            <!-- Tổng tiền -->
+            <TextView
+                android:id="@+id/tv_history_total"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/accent"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                tools:text="200.000đ" />
+        </LinearLayout>
+
+        <!-- Footer: Payment + Action buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingBottom="12dp"
+            android:gravity="center_vertical">
+
+            <!-- Payment badge -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_payment_status"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💳 Đã thanh toán"
+                android:textColor="@color/white"
+                app:chipBackgroundColor="#CC10B981"
+                app:chipStrokeWidth="0dp"
+                tools:text="⏳ Chưa thanh toán" />
+
+            <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+            <!-- Nút Hủy (chỉ hiện khi pending/approved trước giờ đá) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_cancel_booking"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Hủy đơn"
+                android:textColor="@color/status_rejected"
+                app:strokeColor="@color/status_rejected"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

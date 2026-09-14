@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- activity_admin_dashboard.xml -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark">
+
+    <!-- Top AppBar với nút Đăng xuất luôn hiện diện -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar_admin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/background_card">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar_admin"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="🛡️ Quản trị viên (Admin)"
+            app:titleTextColor="@color/white">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_admin_logout_top"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="8dp"
+                android:text="Đăng xuất"
+                android:textColor="@color/status_rejected"
+                android:textSize="13sp"
+                app:icon="@android:drawable/ic_lock_power_off"
+                app:iconTint="@color/status_rejected" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_admin"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:defaultNavHost="true"
+        app:navGraph="@navigation/nav_graph_admin"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_nav_admin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@color/background_card"
+        app:elevation="8dp"
+        app:itemIconTint="@drawable/selector_bottom_nav"
+        app:itemTextColor="@drawable/selector_bottom_nav"
+        app:menu="@menu/menu_bottom_nav_admin"
+        app:labelVisibilityMode="labeled" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fragment_admin_booking.xml -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/background_dark"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Quản lý đặt sân"
+            app:titleTextColor="@color/white"
+            android:background="@color/transparent" />
+
+        <!-- Filter tabs: Tất cả | Chờ duyệt | Đã duyệt | Từ chối -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tab_layout_booking"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/background_dark"
+            app:tabTextColor="@color/text_secondary"
+            app:tabSelectedTextColor="@color/white"
+            app:tabIndicatorColor="@color/primary_light"
+            app:tabMode="fixed">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tất cả" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Chờ duyệt" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Đã duyệt" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Từ chối" />
+        </com.google.android.material.tabs.TabLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Progress -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/progress_admin_booking"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone"
+        app:indicatorColor="@color/status_pending"
+        app:trackColor="@color/divider"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!-- RecyclerView danh sách đơn -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_admin_bookings"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp"
+        android:paddingBottom="80dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        tools:listitem="@layout/item_admin_booking_card"
+        tools:itemCount="4" />
+
+    <!-- Empty state -->
+    <LinearLayout
+        android:id="@+id/layout_admin_booking_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="40dp"
+        android:visibility="gone"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <TextView android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📋" android:textSize="60sp" />
+        <TextView android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Không có đơn đặt sân"
+            android:textColor="@color/text_secondary"
+            android:textSize="16sp" android:layout_marginTop="12dp" />
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

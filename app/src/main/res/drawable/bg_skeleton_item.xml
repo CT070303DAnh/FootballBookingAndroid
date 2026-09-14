@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- bg_skeleton_item.xml — Màu nền xám cho skeleton loading -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/background_surface" />
+    <corners android:radius="6dp" />
+</shape>

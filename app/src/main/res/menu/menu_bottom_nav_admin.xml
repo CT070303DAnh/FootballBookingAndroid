@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- menu/menu_bottom_nav_admin.xml -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_admin_bookings"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="Đặt sân" />
+
+    <item
+        android:id="@+id/nav_admin_pitches"
+        android:icon="@android:drawable/ic_menu_mapmode"
+        android:title="Sân bóng" />
+
+    <item
+        android:id="@+id/nav_admin_report"
+        android:icon="@android:drawable/ic_menu_sort_by_size"
+        android:title="Báo cáo" />
+
+    <item
+        android:id="@+id/nav_admin_staff"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        android:title="Nhân viên" />
+
+</menu>

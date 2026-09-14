@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- bg_image_overlay.xml — Gradient tối phía dưới ảnh để text rõ hơn -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:type="linear"
+        android:angle="90"
+        android:startColor="#CC000000"
+        android:endColor="#00000000" />
+</shape>

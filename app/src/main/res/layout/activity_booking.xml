@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- activity_booking.xml -->
+<!-- Màn hình đặt sân: Chọn ngày → Chọn giờ → Chọn dịch vụ → Xác nhận -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark"
+    tools:context=".ui.customer.booking.BookingActivity">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/background_dark"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
+            app:navigationIconTint="@color/white"
+            app:title="Đặt sân"
+            app:titleTextColor="@color/white"
+            android:background="@color/transparent" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingBottom="120dp"
+        android:overScrollMode="never"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- ===== INFO SÂN ĐÃ CHỌN ===== -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_pitch_info"
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="14dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:id="@+id/iv_pitch_thumb"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="Ảnh sân"
+                        tools:src="@android:drawable/ic_menu_compass" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginStart="12dp">
+
+                        <TextView
+                            android:id="@+id/tv_booking_pitch_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/white"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            tools:text="Sân Mỹ Đình A" />
+
+                        <TextView
+                            android:id="@+id/tv_booking_pitch_type"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"
+                            tools:text="Sân 7 người" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ===== BƯỚC 1: CHỌN NGÀY ===== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1. Chọn ngày"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="10dp" />
+
+            <!-- CalendarView để chọn ngày -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <CalendarView
+                    android:id="@+id/calendar_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:dateTextAppearance="@android:style/TextAppearance.Small"
+                    android:minDate="@{System.currentTimeMillis()}" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ===== BƯỚC 2: CHỌN KHUNG GIỜ ===== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2. Chọn khung giờ"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="10dp" />
+
+            <!-- Loading skeleton cho time slots -->
+            <com.facebook.shimmer.ShimmerFrameLayout
+                android:id="@+id/shimmer_slots"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone">
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_skeleton_item"/>
+            </com.facebook.shimmer.ShimmerFrameLayout>
+
+            <!-- Grid khung giờ -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_time_slots"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_time_slot"
+                tools:itemCount="6" />
+
+            <!-- ===== BƯỚC 3: DỊCH VỤ KÈM THEO ===== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="3. Dịch vụ kèm theo (tuỳ chọn)"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="10dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_services"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_service_select"
+                tools:itemCount="3" />
+
+            <!-- ===== GHI CHÚ ===== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="4. Ghi chú"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="10dp" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_note"
+                style="@style/TextInputLayout.Custom"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Ghi chú cho sân (không bắt buộc)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_note"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textMultiLine"
+                    android:textColor="@color/text_primary"
+                    android:minLines="3"
+                    android:maxLines="5"
+                    android:gravity="top" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ===== BOTTOM BAR: Tổng tiền + Xác nhận ===== -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_bottom_confirm"
+        style="@style/CardStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:cardCornerRadius="0dp"
+        app:strokeWidth="0dp"
+        app:cardElevation="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Tóm tắt đơn hàng -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Tổng tiền"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tv_total_amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/accent"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    tools:text="200.000đ" />
+            </LinearLayout>
+
+            <!-- Breakdown giá -->
+            <LinearLayout
+                android:id="@+id/layout_price_breakdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="horizontal">
+                    <TextView android:layout_width="0dp" android:layout_weight="1"
+                        android:layout_height="wrap_content" android:text="Giá sân"
+                        android:textColor="@color/text_secondary" android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_base_price" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" android:textColor="@color/text_secondary"
+                        android:textSize="12sp" tools:text="150.000đ" />
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="horizontal"
+                    android:id="@+id/layout_surcharge" android:visibility="gone">
+                    <TextView android:layout_width="0dp" android:layout_weight="1"
+                        android:layout_height="wrap_content" android:text="⚡ Phụ phí cao điểm"
+                        android:textColor="@color/status_pending" android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_surcharge" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" android:textColor="@color/status_pending"
+                        android:textSize="12sp" tools:text="+30.000đ" />
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="horizontal"
+                    android:id="@+id/layout_service_price" android:visibility="gone">
+                    <TextView android:layout_width="0dp" android:layout_weight="1"
+                        android:layout_height="wrap_content" android:text="Dịch vụ"
+                        android:textColor="@color/text_secondary" android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_service_price" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" android:textColor="@color/text_secondary"
+                        android:textSize="12sp" tools:text="+50.000đ" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_confirm_booking"
+                style="@style/Button.Primary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Xác nhận và Thanh toán 💳"
+                android:enabled="false" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

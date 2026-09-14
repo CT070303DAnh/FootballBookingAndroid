@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- item_time_slot.xml — 1 khung giờ trong lưới chọn giờ -->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card_time_slot"
+    style="@style/CardStyle"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="12dp">
+
+        <!-- Giờ bắt đầu - kết thúc -->
+        <TextView
+            android:id="@+id/tv_slot_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            tools:text="18:00 - 19:30" />
+
+        <!-- Badge giờ cao điểm -->
+        <TextView
+            android:id="@+id/tv_peak_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚡ Cao điểm"
+            android:textColor="@color/status_pending"
+            android:textSize="10sp"
+            android:layout_marginTop="2dp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- Trạng thái -->
+        <TextView
+            android:id="@+id/tv_slot_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:layout_marginTop="4dp"
+            tools:text="Còn trống" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

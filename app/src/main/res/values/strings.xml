@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Football Booking AI</string>
+
+    <!-- Auth screens -->
+    <string name="label_login">Đăng Nhập</string>
+    <string name="label_register">Tạo Tài Khoản</string>
+    <string name="hint_email">Email</string>
+    <string name="hint_password">Mật khẩu</string>
+    <string name="hint_confirm_password">Xác nhận mật khẩu</string>
+    <string name="hint_display_name">Họ và tên</string>
+    <string name="hint_phone">Số điện thoại</string>
+    <string name="btn_login">Đăng Nhập</string>
+    <string name="btn_register">Tạo Tài Khoản</string>
+    <string name="text_no_account">Chưa có tài khoản? <b>Đăng ký ngay</b></string>
+    <string name="text_have_account">Đã có tài khoản? <b>Đăng nhập</b></string>
+    <string name="text_forgot_password">Quên mật khẩu?</string>
+    <string name="label_or">hoặc</string>
+
+    <!-- App tagline -->
+    <string name="app_tagline">Đặt sân thông minh\ncùng trợ lý AI</string>
+
+    <!-- Common -->
+    <string name="loading">Đang tải…</string>
+    <string name="error_generic">Đã có lỗi xảy ra. Vui lòng thử lại</string>
+    <string name="btn_retry">Thử lại</string>
+    <string name="btn_cancel">Hủy</string>
+    <string name="btn_confirm">Xác nhận</string>
+    <string name="btn_logout">Đăng xuất</string>
+
+    <!-- Pitch types -->
+    <string name="pitch_type_5">Sân 5 người</string>
+    <string name="pitch_type_7">Sân 7 người</string>
+    <string name="pitch_type_11">Sân 11 người</string>
+
+    <!-- Status labels -->
+    <string name="status_pending">Chờ duyệt</string>
+    <string name="status_approved">Đã duyệt</string>
+    <string name="status_rejected">Từ chối</string>
+    <string name="status_cancelled">Đã hủy</string>
+    <string name="match_upcoming">Sắp đá</string>
+    <string name="match_playing">🔴 Đang đá</string>
+    <string name="match_half_time">⏸ Giữa hiệp</string>
+    <string name="match_finished">Đã kết thúc</string>
+</resources>

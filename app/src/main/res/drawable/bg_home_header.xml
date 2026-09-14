@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- bg_home_header.xml — Gradient header màn hình Home -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:type="linear"
+        android:angle="180"
+        android:startColor="#CC1B5E20"
+        android:centerColor="#991B5E20"
+        android:endColor="#000D1117" />
+</shape>

@@ -1,0 +1,188 @@
+// ============================================================
+// FIRESTORE SECURITY RULES — Football Pitch Booking AI
+// ============================================================
+// Deploy: Firebase Console → Firestore → Rules → Paste → Publish
+// Hoặc CLI: firebase deploy --only firestore:rules
+//
+// MÔ HÌNH PHÂN QUYỀN 3 ROLES:
+//   customer       → Đặt sân, xem sân, viết review
+//   owner          → CRUD sân của mình, duyệt đơn trên sân mình
+//   admin          → Toàn quyền
+//   owner_pending  → Chỉ đọc profile, chờ admin duyệt
+// ============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== HELPER FUNCTIONS =====
+
+    // Kiểm tra user đã đăng nhập
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Lấy role của user hiện tại
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // Kiểm tra user là Admin
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    // Kiểm tra user là Owner (đã duyệt)
+    function isOwner() {
+      return isAuthenticated() && getUserRole() == 'owner';
+    }
+
+    // Kiểm tra user là Customer
+    function isCustomer() {
+      return isAuthenticated() && getUserRole() == 'customer';
+    }
+
+    // Kiểm tra đúng chủ tài khoản
+    function isOwnerOf(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+
+    // ===== COLLECTION: users =====
+    match /users/{userId} {
+
+      // Ai cũng đọc được profile (cần hiển thị tên chủ sân, avatar...)
+      allow read: if isAuthenticated();
+
+      // Chỉ chính mình hoặc Admin mới sửa
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwnerOf(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      // Sub-collection: notifications
+      match /notifications/{notifId} {
+        allow read, write: if isOwnerOf(userId) || isAdmin();
+      }
+
+      // Sub-collection: bookingHistory
+      match /bookingHistory/{histId} {
+        allow read: if isOwnerOf(userId) || isAdmin();
+        allow write: if isAuthenticated(); // Hệ thống tự ghi khi đặt sân
+      }
+    }
+
+
+    // ===== COLLECTION: pitches =====
+    match /pitches/{pitchId} {
+
+      // Tất cả user đã login đều đọc được (Customer cần xem sân)
+      allow read: if isAuthenticated();
+
+      // Admin: toàn quyền CRUD
+      // Owner: chỉ tạo/sửa/xóa sân CÓ ownerId == uid của mình
+      allow create: if isAdmin()
+                    || (isOwner() && request.resource.data.ownerId == request.auth.uid);
+
+      allow update: if isAdmin()
+                    || (isOwner() && resource.data.ownerId == request.auth.uid);
+
+      // Xóa (soft delete via status update — nhưng nếu cần hard delete)
+      allow delete: if isAdmin();
+
+      // Sub-collection: timeSlots
+      match /timeSlots/{slotId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin()
+                     || (isOwner() && get(/databases/$(database)/documents/pitches/$(pitchId)).data.ownerId == request.auth.uid);
+      }
+
+      // Sub-collection: availability (trạng thái slot theo ngày)
+      match /availability/{dateId} {
+        allow read: if isAuthenticated();
+        // Hệ thống ghi khi đặt/hủy/duyệt đơn
+        allow write: if isAuthenticated();
+
+        // Nested: từng slot trong ngày
+        match /{slotId} {
+          allow read: if isAuthenticated();
+          allow write: if isAuthenticated();
+        }
+      }
+    }
+
+
+    // ===== COLLECTION: bookings =====
+    match /bookings/{bookingId} {
+
+      // Customer: chỉ đọc đơn CỦA MÌNH
+      // Owner: đọc đơn trên SÂN CỦA MÌNH (pitchOwnerId == uid)
+      // Admin: đọc TẤT CẢ
+      allow read: if isAdmin()
+                  || (isAuthenticated() && resource.data.customerId == request.auth.uid)
+                  || (isOwner() && resource.data.pitchOwnerId == request.auth.uid);
+
+      // Customer tạo đơn mới (pitchOwnerId được gắn tự động)
+      allow create: if isAuthenticated()
+                    && request.resource.data.customerId == request.auth.uid
+                    && request.resource.data.bookingStatus == 'pending';
+
+      // Cập nhật đơn:
+      // - Admin: toàn quyền update
+      // - Owner: chỉ update đơn trên sân mình (duyệt/từ chối/match status)
+      // - Customer: chỉ hủy đơn của mình (bookingStatus → cancelled)
+      allow update: if isAdmin()
+                    || (isOwner() && resource.data.pitchOwnerId == request.auth.uid)
+                    || (isAuthenticated()
+                        && resource.data.customerId == request.auth.uid
+                        && request.resource.data.bookingStatus == 'cancelled');
+
+      allow delete: if isAdmin();
+    }
+
+
+    // ===== COLLECTION: reviews =====
+    match /reviews/{reviewId} {
+
+      // Ai đã login đều đọc được (hiển thị trên PitchDetail)
+      allow read: if isAuthenticated();
+
+      // Chỉ Customer mới viết review, và phải là chính mình
+      allow create: if isAuthenticated()
+                    && request.resource.data.customerId == request.auth.uid;
+
+      // Chỉ chủ review hoặc Admin mới sửa/xóa
+      allow update: if isAuthenticated()
+                    && resource.data.customerId == request.auth.uid;
+      allow delete: if isAdmin()
+                    || (isAuthenticated() && resource.data.customerId == request.auth.uid);
+    }
+
+
+    // ===== COLLECTION: services =====
+    match /services/{serviceId} {
+      // Dịch vụ kèm theo (nước, bóng, áo...) — ai cũng đọc
+      allow read: if isAuthenticated();
+      // Chỉ Admin hoặc Owner tạo/sửa
+      allow write: if isAdmin() || isOwner();
+    }
+
+
+    // ===== COLLECTION: employees =====
+    match /employees/{empId} {
+      // Chỉ Admin xem & quản lý nhân viên
+      allow read, write: if isAdmin();
+    }
+
+
+    // ===== COLLECTION: fcm_queue =====
+    // Queue xử lý bởi Cloud Functions — gửi push notification
+    match /fcm_queue/{queueId} {
+      // Hệ thống ghi (từ client khi đặt sân, duyệt đơn...)
+      allow create: if isAuthenticated();
+      // Cloud Functions đọc & đánh dấu processed
+      allow read, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+  }
+}

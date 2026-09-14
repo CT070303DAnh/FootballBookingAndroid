@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fragment_admin_report.xml -->
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark"
+    android:overScrollMode="never"
+    android:paddingBottom="80dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Toolbar inline -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:paddingTop="8dp" android:paddingBottom="16dp">
+
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="📊 Báo cáo doanh thu"
+                android:textColor="@color/white" android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <!-- Chọn tháng -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_prev_month"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="36dp" android:layout_height="36dp"
+                app:icon="@android:drawable/ic_media_previous"
+                app:iconTint="@color/text_secondary" />
+
+            <TextView
+                android:id="@+id/tv_report_month"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:paddingHorizontal="8dp"
+                tools:text="Tháng 6/2025" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_next_month"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="36dp" android:layout_height="36dp"
+                app:icon="@android:drawable/ic_media_next"
+                app:iconTint="@color/text_secondary" />
+        </LinearLayout>
+
+        <!-- ===== KPI CARDS ===== -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <!-- Tổng doanh thu -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginEnd="8dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="14dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="💰 Doanh thu" android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_total_revenue"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/accent" android:textSize="18sp"
+                        android:textStyle="bold" android:layout_marginTop="4dp"
+                        tools:text="12.500.000đ" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Tổng đơn -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginStart="8dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="14dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="📋 Tổng đơn" android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_total_bookings"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/primary_light" android:textSize="18sp"
+                        android:textStyle="bold" android:layout_marginTop="4dp"
+                        tools:text="83 đơn" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <!-- ===== BAR CHART: Doanh thu theo ngày ===== -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp">
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp">
+
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Doanh thu theo ngày (nghìn đồng)"
+                    android:textColor="@color/white" android:textSize="14sp"
+                    android:textStyle="bold" android:layout_marginBottom="12dp" />
+
+                <!-- MPAndroidChart BarChart -->
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/bar_chart_revenue"
+                    android:layout_width="match_parent"
+                    android:layout_height="220dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ===== PIE CHART: Tỷ lệ trạng thái đơn ===== -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp">
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp">
+
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Tỷ lệ trạng thái đơn đặt sân"
+                    android:textColor="@color/white" android:textSize="14sp"
+                    android:textStyle="bold" android:layout_marginBottom="12dp" />
+
+                <com.github.mikephil.charting.charts.PieChart
+                    android:id="@+id/pie_chart_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="220dp" />
+
+                <!-- Legend row -->
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="horizontal"
+                    android:gravity="center" android:layout_marginTop="8dp">
+
+                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:layout_marginHorizontal="8dp">
+                        <View android:layout_width="12dp" android:layout_height="12dp"
+                            android:background="@color/status_approved" />
+                        <TextView android:id="@+id/tv_legend_approved"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary" android:textSize="12sp"
+                            android:layout_marginStart="4dp" tools:text="Duyệt: 65" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:layout_marginHorizontal="8dp">
+                        <View android:layout_width="12dp" android:layout_height="12dp"
+                            android:background="@color/status_pending" />
+                        <TextView android:id="@+id/tv_legend_pending"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary" android:textSize="12sp"
+                            android:layout_marginStart="4dp" tools:text="Chờ: 12" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:layout_marginHorizontal="8dp">
+                        <View android:layout_width="12dp" android:layout_height="12dp"
+                            android:background="@color/status_rejected" />
+                        <TextView android:id="@+id/tv_legend_rejected"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary" android:textSize="12sp"
+                            android:layout_marginStart="4dp" tools:text="Từ chối: 6" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ===== LINE CHART: Xu hướng đặt sân 7 ngày gần nhất ===== -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/CardStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp">
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp">
+
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Số đơn theo ngày"
+                    android:textColor="@color/white" android:textSize="14sp"
+                    android:textStyle="bold" android:layout_marginBottom="12dp" />
+
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/line_chart_bookings"
+                    android:layout_width="match_parent"
+                    android:layout_height="180dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

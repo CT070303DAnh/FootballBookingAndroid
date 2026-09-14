@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph_admin"
+    app:startDestination="@id/nav_admin_bookings">
+
+    <fragment
+        android:id="@+id/nav_admin_bookings"
+        android:name="com.example.footballbooking.ui.admin.booking.AdminBookingFragment"
+        android:label="Quản lý đặt sân" />
+
+    <fragment
+        android:id="@+id/nav_admin_pitches"
+        android:name="com.example.footballbooking.ui.admin.pitch.AdminPitchFragment"
+        android:label="Quản lý sân" />
+
+    <fragment
+        android:id="@+id/nav_admin_report"
+        android:name="com.example.footballbooking.ui.admin.report.AdminReportFragment"
+        android:label="Báo cáo doanh thu" />
+
+    <fragment
+        android:id="@+id/nav_admin_staff"
+        android:name="com.example.footballbooking.ui.admin.staff.AdminStaffFragment"
+        android:label="Nhân viên" />
+
+</navigation>

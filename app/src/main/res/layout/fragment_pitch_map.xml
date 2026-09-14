@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fragment_pitch_map.xml — Bản đồ sân bóng Google Maps -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark">
+
+    <!-- Google Map View Fragment -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Top Overlay: Filter Chips -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginTop="16dp"
+        android:layout_marginHorizontal="16dp"
+        android:scrollbars="none"
+        android:overScrollMode="never">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_all"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Tất cả"
+                android:textColor="@color/white"
+                app:chipBackgroundColor="@color/background_card"
+                app:chipStrokeColor="@color/divider" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_5"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sân 5"
+                android:textColor="@color/white"
+                app:chipBackgroundColor="@color/background_card"
+                app:chipStrokeColor="@color/divider" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_7"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sân 7"
+                android:textColor="@color/white"
+                app:chipBackgroundColor="@color/background_card"
+                app:chipStrokeColor="@color/divider" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_11"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sân 11"
+                android:textColor="@color/white"
+                app:chipBackgroundColor="@color/background_card"
+                app:chipStrokeColor="@color/divider" />
+
+        </com.google.android.material.chip.ChipGroup>
+    </HorizontalScrollView>
+
+    <!-- Right Side Controls: GPS and Refresh -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="76dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="vertical">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_my_location"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:contentDescription="Vị trí của tôi"
+            android:src="@android:drawable/ic_menu_mylocation"
+            app:backgroundTint="@color/background_card"
+            app:fabSize="mini"
+            app:tint="@color/primary_light" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_refresh_map"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="Làm mới"
+            android:src="@android:drawable/ic_popup_sync"
+            app:backgroundTint="@color/background_card"
+            app:fabSize="mini"
+            app:tint="@color/white" />
+
+    </LinearLayout>
+
+    <!-- Loading Indicator -->
+    <ProgressBar
+        android:id="@+id/progress_map"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:indeterminateTint="@color/primary_light"
+        android:visibility="gone" />
+
+    <!-- Bottom Selected Pitch Preview Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_pitch_preview"
+        style="@style/CardStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="80dp"
+        android:visibility="gone"
+        app:cardElevation="8dp"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <!-- Top Row: Thumbnail + Info + Close Button -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    android:id="@+id/iv_preview_image"
+                    android:layout_width="85dp"
+                    android:layout_height="85dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:background="@color/background_surface"
+                    android:scaleType="centerCrop"
+                    tools:srcCompat="@android:drawable/ic_menu_gallery" />
+
+                <ImageButton
+                    android:id="@+id/btn_close_preview"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentTop="true"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Đóng xem trước"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    app:tint="@color/text_secondary" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_toEndOf="@id/iv_preview_image"
+                    android:layout_toStartOf="@id/btn_close_preview"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_preview_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        tools:text="Sân bóng Chuyên Việt" />
+
+                    <TextView
+                        android:id="@+id/tv_preview_address"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        tools:text="123 Nguyễn Tri Phương, Đà Nẵng" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/tv_preview_type"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@color/background_surface"
+                            android:paddingHorizontal="6dp"
+                            android:paddingVertical="2dp"
+                            android:textColor="@color/primary_light"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            tools:text="Sân 7 người" />
+
+                        <TextView
+                            android:id="@+id/tv_preview_rating"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:textColor="@color/star_filled"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            tools:text="⭐ 4.8" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_preview_price"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/accent"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="250.000 đ/giờ" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <!-- Bottom Action: Button View Detail -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_preview_detail"
+                style="@style/Button.Primary"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="10dp"
+                android:paddingVertical="0dp"
+                android:text="Xem chi tiết &amp; Đặt sân"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

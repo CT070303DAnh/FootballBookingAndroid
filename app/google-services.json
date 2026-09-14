@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "661923589163",
+    "project_id": "androidbookingfootballai",
+    "storage_bucket": "androidbookingfootballai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:661923589163:android:58b3c5446a0a94eb9ace6e",
+        "android_client_info": {
+          "package_name": "com.example.footballbooking"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJ1bpXuIOFt5Qi8ivas3vjuaq8b3lnEG4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
