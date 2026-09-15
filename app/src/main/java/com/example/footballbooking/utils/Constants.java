@@ -46,6 +46,8 @@ public final class Constants {
     public static final String PAYMENT_REFUNDED = "refunded";
     public static final String METHOD_VNPAY     = "vnpay";
     public static final String METHOD_CASH      = "cash";
+    public static final String METHOD_PAY_LATER = "pay_later"; // Thanh toán sau
+
 
     // ===== PITCH TYPE =====
     public static final String PITCH_TYPE_5  = "5";

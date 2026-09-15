@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.example.footballbooking.data.model.Booking;
 import com.example.footballbooking.databinding.FragmentBookingHistoryBinding;
 import com.example.footballbooking.ui.common.adapter.BookingAdapter;
+import com.example.footballbooking.utils.Constants;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -114,7 +115,42 @@ public class BookingHistoryFragment extends Fragment
 
     @Override
     public void onBookingClick(Booking booking) {
-        // TODO: Mở màn hình chi tiết đơn đặt sân
+        if (booking == null) return;
+        java.text.NumberFormat nf = java.text.NumberFormat.getNumberInstance(new java.util.Locale("vi", "VN"));
+        String shortId = (booking.getBookingId() != null)
+                ? booking.getBookingId().substring(0, Math.min(8, booking.getBookingId().length())) : "";
+
+        if (Constants.PAYMENT_UNPAID.equals(booking.getPaymentStatus())
+                && !Constants.STATUS_CANCELLED.equals(booking.getBookingStatus())
+                && !Constants.STATUS_REJECTED.equals(booking.getBookingStatus())) {
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Đơn đặt sân #" + shortId)
+                    .setMessage("• Sân: " + booking.getPitchName() + "\n"
+                            + "• Thời gian: " + booking.getBookingDate() + " (" + booking.getStartTime() + " - " + booking.getEndTime() + ")\n"
+                            + "• Tổng tiền: " + nf.format((long) booking.getTotalAmount()) + "đ\n"
+                            + "• Trạng thái: Chưa thanh toán (Thanh toán sau)\n\n"
+                            + "Bạn có muốn thanh toán qua VNPay ngay bây giờ không?")
+                    .setPositiveButton("Thanh toán ngay (VNPay)", (dialog, which) -> {
+                        android.content.Intent intent = new android.content.Intent(requireContext(),
+                                com.example.footballbooking.ui.customer.payment.PaymentActivity.class);
+                        intent.putExtra(Constants.EXTRA_BOOKING_ID, booking.getBookingId());
+                        intent.putExtra("extra_amount", (long) booking.getTotalAmount());
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("Đóng", null)
+                    .show();
+        } else {
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Đơn đặt sân #" + shortId)
+                    .setMessage("• Sân: " + booking.getPitchName() + "\n"
+                            + "• Địa chỉ: " + booking.getPitchAddress() + "\n"
+                            + "• Thời gian: " + booking.getBookingDate() + " (" + booking.getStartTime() + " - " + booking.getEndTime() + ")\n"
+                            + "• Trạng thái: " + booking.getBookingStatus() + "\n"
+                            + "• Tổng tiền: " + nf.format((long) booking.getTotalAmount()) + "đ\n"
+                            + "• Thanh toán: " + (Constants.PAYMENT_PAID.equals(booking.getPaymentStatus()) ? "Đã thanh toán" : "Chưa thanh toán"))
+                    .setPositiveButton("Đóng", null)
+                    .show();
+        }
     }
 
     private void showEmpty(boolean empty) {

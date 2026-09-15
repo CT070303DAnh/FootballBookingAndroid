@@ -60,19 +60,50 @@ public class BookingViewModel extends ViewModel {
                 .format(new Date());
     }
 
+    private final MutableLiveData<Resource<List<Service>>> servicesLiveData = new MutableLiveData<>();
+
     // ============================================================
     // EXPOSE LiveData
     // ============================================================
 
     public MutableLiveData<Resource<List<Booking>>> getBookingHistory() { return bookingHistory; }
     public MutableLiveData<Resource<List<TimeSlot>>> getAvailableSlots() { return availableSlots; }
+    public MutableLiveData<Resource<List<Service>>> getServicesLiveData() { return servicesLiveData; }
     public MutableLiveData<Resource<Booking>> getCreateBookingResult() { return createBookingResult; }
     public MutableLiveData<Resource<Boolean>> getCancelBookingResult() { return cancelBookingResult; }
 
     public String getSelectedDate() { return selectedDate; }
     public TimeSlot getSelectedSlot() { return selectedSlot; }
+    public Pitch getSelectedPitch() { return selectedPitch; }
+    public User getCurrentUser() { return currentUser; }
     public double getTotalAmount() { return totalAmount; }
     public String getFormattedTotal() { return currencyFormatter.format((long) totalAmount) + "đ"; }
+
+    public double getBasePrice() {
+        return selectedPitch != null ? selectedPitch.getBasePrice() : 0;
+    }
+
+    public double getSurcharge() {
+        return (selectedSlot != null && selectedSlot.isPeakHour()) ? selectedSlot.getSurcharge() : 0;
+    }
+
+    public double getServicePrice() {
+        double total = 0;
+        for (Service s : selectedServices) total += s.getPrice();
+        return total;
+    }
+
+    public String getFormattedBasePrice() {
+        return currencyFormatter.format((long) getBasePrice()) + "đ";
+    }
+
+    public String getFormattedSurcharge() {
+        return "+" + currencyFormatter.format((long) getSurcharge()) + "đ";
+    }
+
+    public String getFormattedServicePrice() {
+        return "+" + currencyFormatter.format((long) getServicePrice()) + "đ";
+    }
 
     // ============================================================
     // INIT: Thiết lập context (gọi từ Activity sau khi nhận Intent)
@@ -83,11 +114,41 @@ public class BookingViewModel extends ViewModel {
         this.currentUser   = user;
         // Load slots cho ngày hôm nay
         loadSlotsForDate(selectedDate);
+        loadServices();
     }
 
     // ============================================================
     // ACTIONS
     // ============================================================
+
+    /** Tải danh sách dịch vụ đi kèm */
+    public void loadServices() {
+        servicesLiveData.setValue(Resource.loading(null));
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection(Constants.COL_SERVICES)
+                .whereEqualTo("isActive", true)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    List<Service> services = new ArrayList<>();
+                    if (snapshot != null && !snapshot.isEmpty()) {
+                        services = snapshot.toObjects(Service.class);
+                    }
+                    if (services.isEmpty()) {
+                        // Cung cấp dịch vụ mặc định nếu chưa seed
+                        services.add(new Service("svc_1", "Thuê bóng", 30000, "Bóng thi đấu tiêu chuẩn", "quả", true));
+                        services.add(new Service("svc_2", "Bộ áo đấu (10 áo)", 100000, "Bộ 10 áo 2 màu phân biệt", "bộ", true));
+                        services.add(new Service("svc_3", "Nước khoáng đóng chai", 50000, "Thùng 12 chai nước 500ml", "thùng", true));
+                    }
+                    servicesLiveData.setValue(Resource.success(services));
+                })
+                .addOnFailureListener(e -> {
+                    List<Service> services = new ArrayList<>();
+                    services.add(new Service("svc_1", "Thuê bóng", 30000, "Bóng thi đấu tiêu chuẩn", "quả", true));
+                    services.add(new Service("svc_2", "Bộ áo đấu (10 áo)", 100000, "Bộ 10 áo 2 màu phân biệt", "bộ", true));
+                    services.add(new Service("svc_3", "Nước khoáng đóng chai", 50000, "Thùng 12 chai nước 500ml", "thùng", true));
+                    servicesLiveData.setValue(Resource.success(services));
+                });
+    }
 
     /** Gọi khi user chọn ngày mới từ CalendarView */
     public void onDateSelected(long dateMillis) {
@@ -127,12 +188,17 @@ public class BookingViewModel extends ViewModel {
                 && currentUser != null;
     }
 
-    /** Tạo đơn đặt sân */
-    public void confirmBooking(String note) {
+    /** Tạo đơn đặt sân với phương thức thanh toán chỉ định */
+    public void confirmBooking(String note, String paymentMethod) {
         if (!canConfirmBooking()) return;
 
-        Booking booking = buildBookingObject(note);
-        bookingRepository.createBooking(booking, createBookingResult);
+        Booking booking = buildBookingObject(note, paymentMethod);
+        bookingRepository.createBooking(booking, selectedPitch, createBookingResult);
+    }
+
+    /** Tạo đơn đặt sân (mặc định VNPay) */
+    public void confirmBooking(String note) {
+        confirmBooking(note, Constants.METHOD_VNPAY);
     }
 
     /** Load lịch sử đặt sân của user hiện tại */
@@ -189,7 +255,7 @@ public class BookingViewModel extends ViewModel {
     }
 
     /** Build Booking object từ tất cả state hiện tại */
-    private Booking buildBookingObject(String note) {
+    private Booking buildBookingObject(String note, String paymentMethod) {
         Booking booking = new Booking();
 
         // Customer info (denormalized)
@@ -229,11 +295,15 @@ public class BookingViewModel extends ViewModel {
         booking.setSurcharge(surcharge);
         booking.setTotalAmount(totalAmount);
 
-        // Defaults
-        booking.setPaymentMethod(Constants.METHOD_VNPAY);
+        // Payment Method & Note
+        booking.setPaymentMethod(paymentMethod != null ? paymentMethod : Constants.METHOD_VNPAY);
         booking.setNote(note != null ? note : "");
 
         return booking;
+    }
+
+    private Booking buildBookingObject(String note) {
+        return buildBookingObject(note, Constants.METHOD_VNPAY);
     }
 
     /** Kiểm tra đã qua giờ thi đấu chưa */

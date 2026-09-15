@@ -16,6 +16,16 @@ public class Service {
 
     public Service() {}
 
+    public Service(String serviceId, String name, double price,
+                   String description, String unit, boolean isActive) {
+        this.serviceId = serviceId;
+        this.name = name;
+        this.price = price;
+        this.description = description;
+        this.unit = unit;
+        this.isActive = isActive;
+    }
+
     // --- Getters & Setters ---
     public String getServiceId() { return serviceId; }
     public void setServiceId(String serviceId) { this.serviceId = serviceId; }

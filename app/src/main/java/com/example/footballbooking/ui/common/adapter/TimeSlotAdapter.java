@@ -36,7 +36,10 @@ public class TimeSlotAdapter extends ListAdapter<TimeSlot, TimeSlotAdapter.SlotV
                 }
                 @Override
                 public boolean areContentsTheSame(@NonNull TimeSlot o, @NonNull TimeSlot n) {
-                    return o.isActive() == n.isActive() && o.isPeakHour() == n.isPeakHour();
+                    return o.isActive() == n.isActive()
+                            && o.isPeakHour() == n.isPeakHour()
+                            && o.isAvailable() == n.isAvailable()
+                            && (o.getStatus() != null && o.getStatus().equals(n.getStatus()));
                 }
             };
 
@@ -72,42 +75,69 @@ public class TimeSlotAdapter extends ListAdapter<TimeSlot, TimeSlotAdapter.SlotV
         }
 
         void bind(TimeSlot slot, OnSlotClickListener listener, String selectedSlotId) {
-            b.tvSlotTime.setText(slot.getStartTime() + "\n" + slot.getEndTime());
+            android.content.Context ctx = b.getRoot().getContext();
+            b.tvSlotTime.setText(slot.getStartTime() + " - " + slot.getEndTime());
             b.tvPeakBadge.setVisibility(slot.isPeakHour() ? View.VISIBLE : View.GONE);
 
-            boolean isSelected = slot.getSlotId() != null
+            boolean isAvailable = slot.isAvailable();
+            boolean isSelected = isAvailable && slot.getSlotId() != null
                     && slot.getSlotId().equals(selectedSlotId);
 
-            // Màu card theo trạng thái
-            if (isSelected) {
-                // Đang chọn → xanh đậm
-                b.cardTimeSlot.setStrokeColor(
-                        ContextCompat.getColor(b.getRoot().getContext(), R.color.primary_light));
-                b.cardTimeSlot.setStrokeWidth(3);
-                b.cardTimeSlot.setCardBackgroundColor(
-                        ContextCompat.getColor(b.getRoot().getContext(), R.color.primary_variant));
-                b.tvSlotTime.setTextColor(
-                        ContextCompat.getColor(b.getRoot().getContext(), R.color.white));
-                b.tvSlotStatus.setText("✓ Đã chọn");
-                b.tvSlotStatus.setTextColor(
-                        ContextCompat.getColor(b.getRoot().getContext(), R.color.primary_light));
-            } else {
-                // Bình thường
+            if (!isAvailable) {
+                // Khung giờ đã được đặt hoặc đã qua
+                b.cardTimeSlot.setAlpha(0.55f);
                 b.cardTimeSlot.setStrokeWidth(1);
-                b.cardTimeSlot.setStrokeColor(
-                        ContextCompat.getColor(b.getRoot().getContext(), R.color.divider));
-                b.cardTimeSlot.setCardBackgroundColor(
-                        ContextCompat.getColor(b.getRoot().getContext(), R.color.background_card));
-                b.tvSlotTime.setTextColor(
-                        ContextCompat.getColor(b.getRoot().getContext(), R.color.text_primary));
-                b.tvSlotStatus.setText("Còn trống");
-                b.tvSlotStatus.setTextColor(
-                        ContextCompat.getColor(b.getRoot().getContext(), R.color.status_approved));
-            }
+                b.cardTimeSlot.setStrokeColor(ContextCompat.getColor(ctx, R.color.divider));
+                b.cardTimeSlot.setCardBackgroundColor(ContextCompat.getColor(ctx, R.color.background_dark));
+                b.tvSlotTime.setTextColor(ContextCompat.getColor(ctx, R.color.text_secondary));
 
-            b.cardTimeSlot.setOnClickListener(v -> {
-                if (listener != null) listener.onSlotClick(slot);
-            });
+                if ("past".equalsIgnoreCase(slot.getStatus())) {
+                    b.tvSlotStatus.setText("Đã qua");
+                    b.tvSlotStatus.setTextColor(ContextCompat.getColor(ctx, R.color.text_secondary));
+                } else {
+                    b.tvSlotStatus.setText("🔒 Đã đặt");
+                    b.tvSlotStatus.setTextColor(ContextCompat.getColor(ctx, R.color.status_rejected));
+                }
+
+                b.cardTimeSlot.setOnClickListener(v ->
+                        android.widget.Toast.makeText(ctx,
+                                "Khung giờ này không khả dụng!",
+                                android.widget.Toast.LENGTH_SHORT).show()
+                );
+            } else {
+                // Khung giờ còn trống
+                b.cardTimeSlot.setAlpha(1.0f);
+
+                if (isSelected) {
+                    // Đang chọn → xanh đậm
+                    b.cardTimeSlot.setStrokeColor(
+                            ContextCompat.getColor(ctx, R.color.primary_light));
+                    b.cardTimeSlot.setStrokeWidth(3);
+                    b.cardTimeSlot.setCardBackgroundColor(
+                            ContextCompat.getColor(ctx, R.color.primary_variant));
+                    b.tvSlotTime.setTextColor(
+                            ContextCompat.getColor(ctx, R.color.white));
+                    b.tvSlotStatus.setText("✓ Đã chọn");
+                    b.tvSlotStatus.setTextColor(
+                            ContextCompat.getColor(ctx, R.color.primary_light));
+                } else {
+                    // Bình thường
+                    b.cardTimeSlot.setStrokeWidth(1);
+                    b.cardTimeSlot.setStrokeColor(
+                            ContextCompat.getColor(ctx, R.color.divider));
+                    b.cardTimeSlot.setCardBackgroundColor(
+                            ContextCompat.getColor(ctx, R.color.background_card));
+                    b.tvSlotTime.setTextColor(
+                            ContextCompat.getColor(ctx, R.color.text_primary));
+                    b.tvSlotStatus.setText("Còn trống");
+                    b.tvSlotStatus.setTextColor(
+                            ContextCompat.getColor(ctx, R.color.status_approved));
+                }
+
+                b.cardTimeSlot.setOnClickListener(v -> {
+                    if (listener != null) listener.onSlotClick(slot);
+                });
+            }
         }
     }
 }

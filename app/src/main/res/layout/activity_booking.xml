@@ -146,6 +146,17 @@
                 tools:listitem="@layout/item_time_slot"
                 tools:itemCount="6" />
 
+            <TextView
+                android:id="@+id/tv_no_slots"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Chưa có khung giờ nào cho ngày này."
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:padding="16dp"
+                android:visibility="gone" />
+
             <!-- ===== BƯỚC 3: DỊCH VỤ KÈM THEO ===== -->
             <TextView
                 android:layout_width="wrap_content"
@@ -193,6 +204,57 @@
                     android:maxLines="5"
                     android:gravity="top" />
             </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- ===== BƯỚC 5: PHƯƠNG THỨC THANH TOÁN ===== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="5. Phương thức thanh toán"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="10dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <RadioGroup
+                    android:id="@+id/rg_payment_method"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/rb_vnpay"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="💳 Thanh toán ngay (VNPay)"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:checked="true" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/rb_cash"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="💵 Thanh toán tại sân (Tiền mặt)"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:layout_marginTop="6dp" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/rb_pay_later"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="⏳ Thanh toán sau (Giữ chỗ trước, thanh toán sau)"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:layout_marginTop="6dp" />
+                </RadioGroup>
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -287,7 +349,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:text="Xác nhận và Thanh toán 💳"
-                android:enabled="false" />
+                android:enabled="true" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

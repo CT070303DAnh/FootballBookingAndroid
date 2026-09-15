@@ -206,14 +206,17 @@ public class OwnerRepository {
                 "bookingStatus", Constants.STATUS_APPROVED);
 
         // Lock slot
-        String slotPath = Constants.COL_PITCHES + "/" + booking.getPitchId()
-                + "/" + Constants.SUB_AVAILABILITY + "/" + booking.getBookingDate()
-                + "/" + booking.getSlotId();
         Map<String, Object> slotUpdate = new HashMap<>();
-        slotUpdate.put("status", "booked");
-        slotUpdate.put("bookingId", booking.getBookingId());
-        batch.set(mDb.document(slotPath), slotUpdate,
-                com.google.firebase.firestore.SetOptions.merge());
+        slotUpdate.put("slots." + booking.getSlotId() + ".status", "booked");
+        slotUpdate.put("slots." + booking.getSlotId() + ".bookingId", booking.getBookingId());
+        batch.set(
+                mDb.collection(Constants.COL_PITCHES)
+                   .document(booking.getPitchId())
+                   .collection(Constants.SUB_AVAILABILITY)
+                   .document(booking.getBookingDate()),
+                slotUpdate,
+                com.google.firebase.firestore.SetOptions.merge()
+        );
 
         // FCM queue
         Map<String, Object> fcm = new HashMap<>();

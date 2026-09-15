@@ -113,14 +113,17 @@ public class AdminRepository {
         );
 
         // 2. Lock availability slot
-        String slotPath = Constants.COL_PITCHES + "/" + booking.getPitchId()
-                + "/" + Constants.SUB_AVAILABILITY + "/" + booking.getBookingDate()
-                + "/" + booking.getSlotId();
         Map<String, Object> slotUpdate = new HashMap<>();
-        slotUpdate.put("status", "booked");
-        slotUpdate.put("bookingId", booking.getBookingId());
-        batch.set(mDb.document(slotPath), slotUpdate,
-                com.google.firebase.firestore.SetOptions.merge());
+        slotUpdate.put("slots." + booking.getSlotId() + ".status", "booked");
+        slotUpdate.put("slots." + booking.getSlotId() + ".bookingId", booking.getBookingId());
+        batch.set(
+                mDb.collection(Constants.COL_PITCHES)
+                   .document(booking.getPitchId())
+                   .collection(Constants.SUB_AVAILABILITY)
+                   .document(booking.getBookingDate()),
+                slotUpdate,
+                com.google.firebase.firestore.SetOptions.merge()
+        );
 
         // 3. Tạo notification document → Cloud Function sẽ pick up và gửi FCM
         Map<String, Object> notifData = new HashMap<>();
@@ -161,10 +164,17 @@ public class AdminRepository {
         );
 
         // Trả slot về available
-        String slotPath = Constants.COL_PITCHES + "/" + booking.getPitchId()
-                + "/" + Constants.SUB_AVAILABILITY + "/" + booking.getBookingDate()
-                + "/" + booking.getSlotId();
-        batch.update(mDb.document(slotPath), "status", "available");
+        Map<String, Object> slotRestore = new HashMap<>();
+        slotRestore.put("slots." + booking.getSlotId() + ".status", "available");
+        slotRestore.put("slots." + booking.getSlotId() + ".bookingId", null);
+        batch.set(
+                mDb.collection(Constants.COL_PITCHES)
+                   .document(booking.getPitchId())
+                   .collection(Constants.SUB_AVAILABILITY)
+                   .document(booking.getBookingDate()),
+                slotRestore,
+                com.google.firebase.firestore.SetOptions.merge()
+        );
 
         // FCM queue
         Map<String, Object> notifData = new HashMap<>();
