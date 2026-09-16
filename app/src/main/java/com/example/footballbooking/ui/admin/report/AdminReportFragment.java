@@ -74,6 +74,8 @@ public class AdminReportFragment extends Fragment {
         setupMonthNavigation();
         observeViewModel();
         loadCurrentMonth();
+        adminViewModel.loadAllUsers();
+        adminViewModel.loadAllPitchesForModeration();
     }
 
     private void setupMonthNavigation() {
@@ -112,6 +114,25 @@ public class AdminReportFragment extends Fragment {
                 bindReportData(resource.data);
             } else if (resource.isError()) {
                 Snackbar.make(binding.getRoot(), resource.message, Snackbar.LENGTH_SHORT).show();
+            }
+        });
+
+        adminViewModel.getAllUsers().observe(getViewLifecycleOwner(), resource -> {
+            if (resource != null && resource.isSuccess() && resource.data != null) {
+                int userCount = 0;
+                int ownerCount = 0;
+                for (com.example.footballbooking.data.model.User user : resource.data) {
+                    if (Constants.ROLE_CUSTOMER.equals(user.getRole())) userCount++;
+                    else if (Constants.ROLE_OWNER.equals(user.getRole()) || Constants.ROLE_OWNER_PENDING.equals(user.getRole())) ownerCount++;
+                }
+                binding.tvTotalUsers.setText(String.valueOf(userCount));
+                binding.tvTotalOwners.setText(String.valueOf(ownerCount));
+            }
+        });
+
+        adminViewModel.getAllPitches().observe(getViewLifecycleOwner(), resource -> {
+            if (resource != null && resource.isSuccess() && resource.data != null) {
+                binding.tvTotalPitches.setText(String.valueOf(resource.data.size()));
             }
         });
     }

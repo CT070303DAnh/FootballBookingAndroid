@@ -3,23 +3,23 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/nav_admin_bookings"
-        android:icon="@android:drawable/ic_menu_agenda"
-        android:title="Đặt sân" />
+        android:id="@+id/nav_admin_report"
+        android:icon="@android:drawable/ic_menu_sort_by_size"
+        android:title="Dashboard" />
+
+    <item
+        android:id="@+id/nav_admin_users"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        android:title="Người dùng" />
 
     <item
         android:id="@+id/nav_admin_pitches"
         android:icon="@android:drawable/ic_menu_mapmode"
-        android:title="Sân bóng" />
+        android:title="Duyệt Sân" />
 
     <item
-        android:id="@+id/nav_admin_report"
-        android:icon="@android:drawable/ic_menu_sort_by_size"
-        android:title="Báo cáo" />
-
-    <item
-        android:id="@+id/nav_admin_staff"
-        android:icon="@android:drawable/ic_menu_myplaces"
-        android:title="Nhân viên" />
+        android:id="@+id/nav_admin_bookings"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="Giám sát" />
 
 </menu>

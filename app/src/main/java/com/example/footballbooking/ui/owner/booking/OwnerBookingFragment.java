@@ -17,7 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.footballbooking.data.model.Booking;
 import com.example.footballbooking.databinding.FragmentAdminBookingBinding;
-import com.example.footballbooking.ui.common.adapter.AdminBookingAdapter;
+import com.example.footballbooking.ui.common.adapter.OwnerBookingAdapter;
 import com.example.footballbooking.ui.owner.OwnerViewModel;
 import com.example.footballbooking.utils.Constants;
 import com.google.android.material.snackbar.Snackbar;
@@ -33,11 +33,11 @@ import java.util.stream.Collectors;
  * Chỉ hiển thị đơn thuộc sân của Owner (filter bởi OwnerRepository).
  */
 public class OwnerBookingFragment extends Fragment
-        implements AdminBookingAdapter.OnAdminBookingActionListener {
+        implements OwnerBookingAdapter.OnOwnerBookingActionListener {
 
     private FragmentAdminBookingBinding binding;
     private OwnerViewModel ownerViewModel;
-    private AdminBookingAdapter adapter;
+    private OwnerBookingAdapter adapter;
 
     private List<Booking> allBookings = new ArrayList<>();
     private int currentTab = 0;
@@ -56,7 +56,7 @@ public class OwnerBookingFragment extends Fragment
 
         ownerViewModel = new ViewModelProvider(requireActivity()).get(OwnerViewModel.class);
 
-        adapter = new AdminBookingAdapter(this);
+        adapter = new OwnerBookingAdapter(this);
         binding.rvAdminBookings.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.rvAdminBookings.setAdapter(adapter);
 

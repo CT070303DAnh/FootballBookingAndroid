@@ -93,6 +93,65 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
+        <!-- ===== KPI CARDS ROW 2 ===== -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+
+            <!-- Tổng người dùng -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginEnd="4dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="14dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="👥 Users" android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_total_users"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/white" android:textSize="18sp"
+                        android:textStyle="bold" android:layout_marginTop="4dp"
+                        tools:text="150" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Tổng chủ sân -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginHorizontal="4dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="14dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="👑 Owners" android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_total_owners"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/white" android:textSize="18sp"
+                        android:textStyle="bold" android:layout_marginTop="4dp"
+                        tools:text="20" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Tổng sân -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginStart="4dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="14dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="🏟️ Pitches" android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                    <TextView android:id="@+id/tv_total_pitches"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/white" android:textSize="18sp"
+                        android:textStyle="bold" android:layout_marginTop="4dp"
+                        tools:text="45" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
         <!-- ===== BAR CHART: Doanh thu theo ngày ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/CardStyle"

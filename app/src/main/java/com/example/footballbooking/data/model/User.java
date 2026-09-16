@@ -3,6 +3,7 @@ package com.example.footballbooking.data.model;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentId;
 import com.google.firebase.firestore.ServerTimestamp;
+import com.example.footballbooking.utils.Constants;
 
 /**
  * Model ánh xạ với Firestore collection "users".
@@ -19,6 +20,7 @@ public class User {
     private String avatarUrl;
     private String role;        // "customer" hoặc "admin" — xem Constants.java
     private String fcmToken;    // FCM token để gửi push notification
+    private String status = Constants.STATUS_ACTIVE; // "active" hoặc "blocked"
 
     @ServerTimestamp
     private Timestamp createdAt;
@@ -38,6 +40,7 @@ public class User {
         this.role = role;
         this.avatarUrl = "";
         this.fcmToken = "";
+        this.status = Constants.STATUS_ACTIVE;
     }
 
     // --- Getters & Setters ---
@@ -61,6 +64,9 @@ public class User {
 
     public String getFcmToken() { return fcmToken; }
     public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }

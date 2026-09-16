@@ -58,6 +58,11 @@ public final class Constants {
     public static final String PITCH_AVAILABLE   = "available";
     public static final String PITCH_MAINTENANCE = "maintenance";
     public static final String PITCH_CLOSED      = "closed";
+    public static final String PITCH_SUSPENDED   = "suspended";
+
+    // ===== USER STATUS =====
+    public static final String STATUS_ACTIVE     = "active";
+    public static final String STATUS_BLOCKED    = "blocked";
 
     // ===== API BASE URLs =====
     public static final String WEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/";
