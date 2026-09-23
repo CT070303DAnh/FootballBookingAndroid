@@ -170,6 +170,8 @@ public class HomeFragment extends Fragment implements PitchAdapter.OnPitchClickL
                         && !resource.data.getAvatarUrl().isEmpty()) {
                     com.bumptech.glide.Glide.with(this)
                             .load(resource.data.getAvatarUrl())
+                            .placeholder(com.example.footballbooking.R.drawable.ic_launcher_background)
+                            .error(com.example.footballbooking.R.drawable.ic_launcher_background)
                             .circleCrop()
                             .into(binding.civAvatar);
                 }

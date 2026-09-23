@@ -60,7 +60,7 @@ public class OwnerPitchFragment extends Fragment
 
     // Ảnh sân bóng mặc định chất lượng cao từ Unsplash nếu chủ sân chưa có ảnh
     private static final String DEFAULT_PITCH_IMAGE =
-            "https://images.unsplash.com/photo-1529900248674-20b72322c342?q=80&w=800";
+            "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=800";
 
     private final ActivityResultLauncher<String> imagePickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
@@ -69,7 +69,12 @@ public class OwnerPitchFragment extends Fragment
                     if (dialogBinding != null) {
                         dialogBinding.tvPickImageHint.setVisibility(View.GONE);
                         dialogBinding.ivPitchPreview.setVisibility(View.VISIBLE);
-                        Glide.with(this).load(uri).centerCrop().into(dialogBinding.ivPitchPreview);
+                        Glide.with(this)
+                                .load(uri)
+                                .placeholder(com.example.footballbooking.R.drawable.bg_home_header)
+                                .error(com.example.footballbooking.R.drawable.bg_auth_header)
+                                .centerCrop()
+                                .into(dialogBinding.ivPitchPreview);
                     }
                 }
             });
@@ -220,7 +225,12 @@ public class OwnerPitchFragment extends Fragment
                 dialogBinding.etPitchImageUrl.setText(pitch.getImageUrls().get(0));
                 dialogBinding.tvPickImageHint.setVisibility(View.GONE);
                 dialogBinding.ivPitchPreview.setVisibility(View.VISIBLE);
-                Glide.with(this).load(pitch.getImageUrls().get(0)).centerCrop().into(dialogBinding.ivPitchPreview);
+                Glide.with(this)
+                        .load(pitch.getImageUrls().get(0))
+                        .placeholder(com.example.footballbooking.R.drawable.bg_home_header)
+                        .error(com.example.footballbooking.R.drawable.bg_auth_header)
+                        .centerCrop()
+                        .into(dialogBinding.ivPitchPreview);
             }
             setAmenityChips(pitch.getAmenities());
         } else {

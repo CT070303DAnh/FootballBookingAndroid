@@ -200,6 +200,8 @@ public class BookingActivity extends AppCompatActivity
         binding.tvBookingPitchType.setText("Sân " + pitch.getType() + " người");
         if (pitch.getImageUrls() != null && !pitch.getImageUrls().isEmpty()) {
             Glide.with(this).load(pitch.getImageUrls().get(0))
+                    .placeholder(com.example.footballbooking.R.drawable.bg_home_header)
+                    .error(com.example.footballbooking.R.drawable.bg_auth_header)
                     .centerCrop().into(binding.ivPitchThumb);
         }
     }

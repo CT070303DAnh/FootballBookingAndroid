@@ -1,7 +1,6 @@
 package com.example.footballbooking.data.model;
 
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentId;
 import com.google.firebase.firestore.ServerTimestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +8,6 @@ import java.util.List;
 /** Model ánh xạ với Firestore collection "reviews". */
 public class Review {
 
-    @DocumentId
     private String reviewId;
     private String bookingId;       // Mỗi booking chỉ review được 1 lần
     private String customerId;

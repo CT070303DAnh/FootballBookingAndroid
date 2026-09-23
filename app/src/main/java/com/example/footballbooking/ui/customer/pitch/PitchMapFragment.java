@@ -286,6 +286,7 @@ public class PitchMapFragment extends Fragment implements OnMapReadyCallback {
             Glide.with(this)
                     .load(pitch.getImageUrls().get(0))
                     .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
                     .into(binding.ivPreviewImage);
         } else {
             binding.ivPreviewImage.setImageResource(android.R.drawable.ic_menu_gallery);

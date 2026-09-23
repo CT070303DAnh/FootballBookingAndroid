@@ -141,6 +141,14 @@ public class FirestoreSeeder {
                 {"💡 Đèn đêm", "💧 Nước uống"},
         };
 
+        String[] sampleImageUrls = {
+                "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=800",
+                "https://images.unsplash.com/photo-1522778119026-d647f0596c20?q=80&w=800",
+                "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=800",
+                "https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800",
+                "https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?q=80&w=800"
+        };
+
         for (int i = 0; i < pitchData.length; i++) {
             String[] p = pitchData[i];
             String pitchId = "pitch_" + (i + 1);
@@ -157,7 +165,7 @@ public class FirestoreSeeder {
             pitch.put("status", Constants.PITCH_AVAILABLE);
             pitch.put("rating", 4.0f + (float)(Math.random() * 1.0));
             pitch.put("totalReviews", (int)(Math.random() * 50) + 5);
-            pitch.put("imageUrls", new ArrayList<>());
+            pitch.put("imageUrls", java.util.Collections.singletonList(sampleImageUrls[i % sampleImageUrls.length]));
             pitch.put("amenities", Arrays.asList(amenitiesData[i]));
             // Owner sẽ được gắn khi owner đăng nhập lần đầu
             pitch.put("ownerId", "");  // Cập nhật sau khi seed users

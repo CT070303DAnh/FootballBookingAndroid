@@ -175,6 +175,9 @@ public class AuthRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         User user = documentSnapshot.toObject(User.class);
+                        if (user != null && (user.getUid() == null || user.getUid().isEmpty())) {
+                            user.setUid(documentSnapshot.getId());
+                        }
                         result.setValue(Resource.success(user));
                     } else {
                         // Tự động khôi phục nếu user đã có trong Firebase Auth nhưng chưa có profile Firestore
@@ -244,7 +247,11 @@ public class AuthRepository {
                 .get()
                 .addOnSuccessListener(doc -> {
                     if (doc.exists()) {
-                        callback.accept(Resource.success(doc.toObject(User.class)));
+                        User user = doc.toObject(User.class);
+                        if (user != null && (user.getUid() == null || user.getUid().isEmpty())) {
+                            user.setUid(doc.getId());
+                        }
+                        callback.accept(Resource.success(user));
                     } else {
                         String email = firebaseUser.getEmail() != null ? firebaseUser.getEmail() : "";
                         String role = Constants.ROLE_CUSTOMER;

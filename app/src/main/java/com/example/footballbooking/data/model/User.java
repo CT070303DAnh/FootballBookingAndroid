@@ -1,18 +1,15 @@
 package com.example.footballbooking.data.model;
 
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentId;
 import com.google.firebase.firestore.ServerTimestamp;
 import com.example.footballbooking.utils.Constants;
 
 /**
  * Model ánh xạ với Firestore collection "users".
- * Dùng @DocumentId để tự động map document ID vào field uid.
  * Firestore yêu cầu constructor rỗng (no-arg) để deserialize.
  */
 public class User {
 
-    @DocumentId
     private String uid;
     private String email;
     private String displayName;

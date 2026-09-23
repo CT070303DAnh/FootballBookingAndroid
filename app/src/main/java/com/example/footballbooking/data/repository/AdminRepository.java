@@ -72,8 +72,18 @@ public class AdminRepository {
                         result.setValue(Resource.error(error.getMessage(), null));
                         return;
                     }
-                    List<User> users = snapshots != null
-                            ? snapshots.toObjects(User.class) : null;
+                    List<User> users = new java.util.ArrayList<>();
+                    if (snapshots != null) {
+                        for (com.google.firebase.firestore.DocumentSnapshot doc : snapshots) {
+                            User user = doc.toObject(User.class);
+                            if (user != null) {
+                                if (user.getUid() == null || user.getUid().isEmpty()) {
+                                    user.setUid(doc.getId());
+                                }
+                                users.add(user);
+                            }
+                        }
+                    }
                     result.setValue(Resource.success(users));
                 });
     }

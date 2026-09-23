@@ -81,6 +81,7 @@ public class ProfileFragment extends Fragment {
                     Glide.with(this)
                             .load(user.getAvatarUrl())
                             .placeholder(android.R.drawable.ic_menu_myplaces)
+                            .error(android.R.drawable.ic_menu_myplaces)
                             .into(binding.ivProfileAvatar);
                 }
             }
