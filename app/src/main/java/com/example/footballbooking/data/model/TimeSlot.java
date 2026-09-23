@@ -1,14 +1,11 @@
 package com.example.footballbooking.data.model;
 
-import com.google.firebase.firestore.DocumentId;
-
 /**
  * Model ánh xạ với sub-collection "timeSlots" của pitches.
  * Mỗi sân có nhiều khung giờ, mỗi khung giờ có thể là giờ cao điểm.
  */
 public class TimeSlot {
 
-    @DocumentId
     private String slotId;
     private String startTime;   // "06:00"
     private String endTime;     // "07:30"

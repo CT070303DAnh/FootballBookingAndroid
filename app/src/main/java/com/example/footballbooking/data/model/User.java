@@ -1,7 +1,6 @@
 package com.example.footballbooking.data.model;
 
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentId;
 import com.google.firebase.firestore.ServerTimestamp;
 import com.example.footballbooking.utils.Constants;
 
@@ -12,7 +11,6 @@ import com.example.footballbooking.utils.Constants;
  */
 public class User {
 
-    @DocumentId
     private String uid;
     private String email;
     private String displayName;

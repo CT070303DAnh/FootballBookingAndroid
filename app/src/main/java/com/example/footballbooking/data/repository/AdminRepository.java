@@ -79,6 +79,10 @@ public class AdminRepository {
     }
 
     public void updateUserStatus(String userId, String status, MutableLiveData<Resource<Boolean>> result) {
+        if (userId == null) {
+            result.setValue(Resource.error("User ID không hợp lệ", false));
+            return;
+        }
         result.setValue(Resource.loading(null));
         mDb.collection(Constants.COL_USERS).document(userId)
                 .update("status", status)
@@ -108,6 +112,10 @@ public class AdminRepository {
     }
 
     public void updatePitchStatus(String pitchId, String status, MutableLiveData<Resource<Boolean>> result) {
+        if (pitchId == null) {
+            result.setValue(Resource.error("Pitch ID không hợp lệ", false));
+            return;
+        }
         result.setValue(Resource.loading(null));
         mDb.collection(Constants.COL_PITCHES).document(pitchId)
                 .update("status", status)

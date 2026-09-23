@@ -1,11 +1,8 @@
 package com.example.footballbooking.data.model;
 
-import com.google.firebase.firestore.DocumentId;
-
 /** Model ánh xạ với Firestore collection "services". */
 public class Service {
 
-    @DocumentId
     private String serviceId;
     private String name;         // "Nước uống", "Áo thi đấu", "Trọng tài"
     private String description;

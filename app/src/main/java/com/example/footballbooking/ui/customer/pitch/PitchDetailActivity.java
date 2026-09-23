@@ -33,23 +33,29 @@ public class PitchDetailActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        binding = ActivityPitchDetailBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        try {
+            super.onCreate(savedInstanceState);
+            binding = ActivityPitchDetailBinding.inflate(getLayoutInflater());
+            setContentView(binding.getRoot());
 
-        pitchId = getIntent().getStringExtra(Constants.EXTRA_PITCH_ID);
+            pitchId = getIntent().getStringExtra(Constants.EXTRA_PITCH_ID);
 
-        if (pitchId == null) {
+            if (pitchId == null) {
+                android.widget.Toast.makeText(this, "Lỗi: pitchId bị null!", android.widget.Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
+
+            pitchViewModel = new ViewModelProvider(this).get(PitchViewModel.class);
+
+            setupToolbar();
+            setupClickListeners();
+            observeViewModel();
+            pitchViewModel.loadPitchDetail(pitchId);
+        } catch (Exception e) {
+            android.widget.Toast.makeText(this, "Lỗi khởi tạo Activity: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
             finish();
-            return;
         }
-
-        pitchViewModel = new ViewModelProvider(this).get(PitchViewModel.class);
-
-        setupToolbar();
-        setupClickListeners();
-        observeViewModel();
-        pitchViewModel.loadPitchDetail(pitchId);
     }
 
     private void setupToolbar() {

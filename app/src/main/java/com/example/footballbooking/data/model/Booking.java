@@ -1,7 +1,6 @@
 package com.example.footballbooking.data.model;
 
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentId;
 import com.google.firebase.firestore.ServerTimestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +16,6 @@ import java.util.Map;
  */
 public class Booking {
 
-    @DocumentId
     private String bookingId;
 
     // --- Thông tin khách hàng (Denormalized để tránh query join) ---

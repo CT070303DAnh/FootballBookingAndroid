@@ -39,6 +39,12 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void setupUI() {
+        // Kiểm tra nếu có lỗi từ SplashActivity (ví dụ bị Blocked)
+        String splashError = getIntent().getStringExtra("ERROR_MESSAGE");
+        if (splashError != null) {
+            showError(splashError);
+        }
+
         // Render HTML cho text "Chưa có tài khoản? Đăng ký ngay"
         binding.tvGoRegister.setText(Html.fromHtml(
                 getString(com.example.footballbooking.R.string.text_no_account),

@@ -1,7 +1,6 @@
 package com.example.footballbooking.data.model;
 
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentId;
 import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.ServerTimestamp;
 import java.util.ArrayList;
@@ -13,7 +12,6 @@ import java.util.List;
  */
 public class Pitch {
 
-    @DocumentId
     private String pitchId;
     private String name;
     private String description;
@@ -94,10 +92,12 @@ public class Pitch {
     public void setUpdatedAt(Timestamp updatedAt) { this.updatedAt = updatedAt; }
 
     // --- Utility methods ---
+    @com.google.firebase.firestore.Exclude
     public boolean isAvailable() {
         return "available".equals(this.status);
     }
 
+    @com.google.firebase.firestore.Exclude
     public String getDisplayType() {
         return "Sân " + type + " người";
     }

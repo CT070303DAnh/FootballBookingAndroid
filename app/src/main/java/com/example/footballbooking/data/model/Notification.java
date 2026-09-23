@@ -1,13 +1,11 @@
 package com.example.footballbooking.data.model;
 
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentId;
 import com.google.firebase.firestore.ServerTimestamp;
 
 /** Model ánh xạ với Firestore collection "notifications". */
 public class Notification {
 
-    @DocumentId
     private String notificationId;
     private String recipientId;   // userId nhận thông báo
     private String title;

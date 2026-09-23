@@ -261,12 +261,17 @@ public class HomeFragment extends Fragment implements PitchAdapter.OnPitchClickL
 
     @Override
     public void onPitchClick(Pitch pitch) {
+        android.widget.Toast.makeText(requireContext(), "Đang mở: " + pitch.getName(), android.widget.Toast.LENGTH_SHORT).show();
         // Navigate sang PitchDetailActivity với pitchId
         Intent intent = new Intent(requireActivity(),
                 com.example.footballbooking.ui.customer.pitch.PitchDetailActivity.class);
         intent.putExtra(com.example.footballbooking.utils.Constants.EXTRA_PITCH_ID,
                 pitch.getPitchId());
-        startActivity(intent);
+        try {
+            startActivity(intent);
+        } catch (Exception e) {
+            android.widget.Toast.makeText(requireContext(), "Lỗi khởi chạy: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override

@@ -44,6 +44,7 @@ public class FirestoreSeeder {
         seedPitches();
         seedServices();
         seedTimeSlots();
+        seedBookings();
         Log.d(TAG, "========= SEED COMPLETE =========");
     }
 
@@ -55,31 +56,37 @@ public class FirestoreSeeder {
 
         // 1. Admin
         createUser(auth, "admin@test.com", "123456", user -> {
+            String uid = (String) user.get("uid");
+            if (uid == null) return;
             user.put("displayName", "Admin System");
             user.put("phoneNumber", "0900 000 000");
             user.put("role", Constants.ROLE_ADMIN);
             user.put("avatarUrl", "");
-            db.collection(Constants.COL_USERS).document((String) user.get("uid")).set(user);
+            db.collection(Constants.COL_USERS).document(uid).set(user);
             Log.d(TAG, "✅ Admin created: admin@test.com / 123456");
         });
 
         // 2. Owner
         createUser(auth, "owner@test.com", "123456", user -> {
+            String uid = (String) user.get("uid");
+            if (uid == null) return;
             user.put("displayName", "Nguyễn Văn Bình");
             user.put("phoneNumber", "0912 345 678");
             user.put("role", Constants.ROLE_OWNER);
             user.put("avatarUrl", "");
-            db.collection(Constants.COL_USERS).document((String) user.get("uid")).set(user);
+            db.collection(Constants.COL_USERS).document(uid).set(user);
             Log.d(TAG, "✅ Owner created: owner@test.com / 123456");
         });
 
         // 3. Customer
         createUser(auth, "customer@test.com", "123456", user -> {
+            String uid = (String) user.get("uid");
+            if (uid == null) return;
             user.put("displayName", "Trần Minh Anh");
             user.put("phoneNumber", "0987 654 321");
             user.put("role", Constants.ROLE_CUSTOMER);
             user.put("avatarUrl", "");
-            db.collection(Constants.COL_USERS).document((String) user.get("uid")).set(user);
+            db.collection(Constants.COL_USERS).document(uid).set(user);
             Log.d(TAG, "✅ Customer created: customer@test.com / 123456");
         });
     }
@@ -146,7 +153,7 @@ public class FirestoreSeeder {
             String pitchId = "pitch_" + (i + 1);
 
             Map<String, Object> pitch = new HashMap<>();
-            pitch.put("pitchId", pitchId);
+            pitch.put("pitchId", pitchId); // Field is now required in data since @DocumentId was removed
             pitch.put("name", p[0]);
             pitch.put("address", p[1]);
             pitch.put("type", p[2]);
@@ -187,7 +194,7 @@ public class FirestoreSeeder {
             String serviceId = "service_" + (i + 1);
 
             Map<String, Object> svc = new HashMap<>();
-            svc.put("serviceId", serviceId);
+            svc.put("serviceId", serviceId); // Using document ID as field
             svc.put("name", s[0]);
             svc.put("price", Double.parseDouble(s[1]));
             svc.put("description", s[2]);
@@ -220,7 +227,7 @@ public class FirestoreSeeder {
             String pitchId = "pitch_" + pitchIdx;
             for (String[] slot : slots) {
                 Map<String, Object> slotData = new HashMap<>();
-                slotData.put("slotId", slot[0]);
+                slotData.put("slotId", slot[0]); // Using document ID as field
                 slotData.put("startTime", slot[1]);
                 slotData.put("endTime", slot[2]);
                 slotData.put("surcharge", Double.parseDouble(slot[3]));
@@ -235,5 +242,76 @@ public class FirestoreSeeder {
             }
             Log.d(TAG, "✅ TimeSlots for " + pitchId + " (" + slots.length + " slots)");
         }
+    }
+
+    // ============================================================
+    // BOOKINGS
+    // ============================================================
+    public static void seedBookings() {
+        Log.d(TAG, "========= SEEDING BOOKINGS =========");
+        db.collection(Constants.COL_USERS).whereEqualTo("role", Constants.ROLE_CUSTOMER).get().addOnSuccessListener(customerSnap -> {
+            if (customerSnap.isEmpty()) return;
+            String customerId = customerSnap.getDocuments().get(0).getId();
+            String customerName = customerSnap.getDocuments().get(0).getString("displayName");
+            String customerPhone = customerSnap.getDocuments().get(0).getString("phoneNumber");
+
+            db.collection(Constants.COL_USERS).whereEqualTo("role", Constants.ROLE_OWNER).get().addOnSuccessListener(ownerSnap -> {
+                if (ownerSnap.isEmpty()) return;
+                String ownerId = ownerSnap.getDocuments().get(0).getId();
+
+                db.collection(Constants.COL_PITCHES).limit(1).get().addOnSuccessListener(pitchSnap -> {
+                    if (pitchSnap.isEmpty()) return;
+                    String pitchId = pitchSnap.getDocuments().get(0).getId();
+                    String pitchName = pitchSnap.getDocuments().get(0).getString("name");
+                    String pitchAddress = pitchSnap.getDocuments().get(0).getString("address");
+
+                    // Booking 1: Pending (Tiền mặt)
+                    Map<String, Object> b1 = new HashMap<>();
+                    String bId1 = "booking_1_" + System.currentTimeMillis();
+                    b1.put("bookingId", bId1); // Using document ID as field
+                    b1.put("customerId", customerId);
+                    b1.put("customerName", customerName);
+                    b1.put("customerPhone", customerPhone);
+                    b1.put("pitchId", pitchId);
+                    b1.put("pitchName", pitchName);
+                    b1.put("pitchAddress", pitchAddress);
+                    b1.put("pitchType", "5");
+                    b1.put("pitchOwnerId", ownerId);
+                    // Lấy ngày mai
+                    java.util.Calendar cal = java.util.Calendar.getInstance();
+                    cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
+                    String tomorrow = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(cal.getTime());
+                    b1.put("bookingDate", tomorrow);
+                    b1.put("slotId", "slot_6");
+                    b1.put("startTime", "17:00");
+                    b1.put("endTime", "18:30");
+                    b1.put("basePrice", 200000.0);
+                    b1.put("surcharge", 30000.0);
+                    b1.put("totalServicePrice", 0.0);
+                    b1.put("totalAmount", 230000.0);
+                    b1.put("paymentStatus", Constants.PAYMENT_UNPAID);
+                    b1.put("paymentMethod", Constants.METHOD_CASH);
+                    b1.put("bookingStatus", Constants.STATUS_PENDING);
+                    b1.put("matchStatus", Constants.MATCH_UPCOMING);
+                    b1.put("createdAt", com.google.firebase.firestore.FieldValue.serverTimestamp());
+                    b1.put("updatedAt", com.google.firebase.firestore.FieldValue.serverTimestamp());
+                    db.collection(Constants.COL_BOOKINGS).document(bId1).set(b1);
+
+                    // Booking 2: Approved (VNPay)
+                    Map<String, Object> b2 = new HashMap<>(b1);
+                    String bId2 = "booking_2_" + System.currentTimeMillis();
+                    cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
+                    String nextTomorrow = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(cal.getTime());
+                    b2.put("bookingId", bId2);
+                    b2.put("bookingDate", nextTomorrow);
+                    b2.put("paymentMethod", Constants.METHOD_VNPAY);
+                    b2.put("paymentStatus", Constants.PAYMENT_PAID);
+                    b2.put("bookingStatus", Constants.STATUS_APPROVED);
+                    db.collection(Constants.COL_BOOKINGS).document(bId2).set(b2);
+
+                    Log.d(TAG, "✅ Bookings seeded successfully!");
+                });
+            });
+        });
     }
 }

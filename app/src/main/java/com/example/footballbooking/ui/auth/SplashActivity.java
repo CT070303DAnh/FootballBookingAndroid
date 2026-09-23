@@ -70,8 +70,18 @@ public class SplashActivity extends AppCompatActivity {
                     break;
 
                 case ERROR:
-                    // Lỗi kết nối → vẫn về Login
-                    binding.getRoot().postDelayed(this::goToLogin, 600);
+                    // Lỗi kết nối hoặc tài khoản bị chặn → vẫn về Login
+                    binding.getRoot().postDelayed(() -> {
+                        if (resource.message != null && resource.message.contains("đình chỉ")) {
+                            // Nếu lỗi do bị chặn, truyền message sang Login để hiển thị
+                            Intent intent = new Intent(SplashActivity.this, LoginActivity.class);
+                            intent.putExtra("ERROR_MESSAGE", resource.message);
+                            startActivity(intent);
+                            finish();
+                        } else {
+                            goToLogin();
+                        }
+                    }, 600);
                     break;
             }
         });

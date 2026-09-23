@@ -169,13 +169,22 @@ public class AuthRepository {
     /** Fetch User document từ Firestore theo UID */
     private void fetchUserFromFirestore(String uid,
                                         MutableLiveData<Resource<User>> result) {
+        if (uid == null) {
+            result.setValue(Resource.error("UID không hợp lệ", null));
+            return;
+        }
         mDb.collection(Constants.COL_USERS)
                 .document(uid)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         User user = documentSnapshot.toObject(User.class);
-                        result.setValue(Resource.success(user));
+                        if (user != null && Constants.STATUS_BLOCKED.equals(user.getStatus())) {
+                            mAuth.signOut(); // Đăng xuất ngay lập tức
+                            result.setValue(Resource.error("Tài khoản của bạn đã bị đình chỉ.", null));
+                        } else {
+                            result.setValue(Resource.success(user));
+                        }
                     } else {
                         // Tự động khôi phục nếu user đã có trong Firebase Auth nhưng chưa có profile Firestore
                         FirebaseUser currentFirebaseUser = mAuth.getCurrentUser();

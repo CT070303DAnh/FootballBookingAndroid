@@ -103,6 +103,10 @@ public class OwnerRepository {
      */
     public void updateMyPitch(Pitch pitch, String ownerId,
                               MutableLiveData<Resource<Boolean>> result) {
+        if (pitch == null || pitch.getPitchId() == null) {
+            result.setValue(Resource.error("Dữ liệu sân không hợp lệ", false));
+            return;
+        }
         if (!ownerId.equals(pitch.getOwnerId())) {
             result.setValue(Resource.error("Không có quyền chỉnh sửa sân này", false));
             return;
@@ -120,6 +124,10 @@ public class OwnerRepository {
      */
     public void closeMyPitch(String pitchId, String ownerId,
                              MutableLiveData<Resource<Boolean>> result) {
+        if (pitchId == null) {
+            result.setValue(Resource.error("ID sân không hợp lệ", false));
+            return;
+        }
         // Verify ownership trước
         mDb.collection(Constants.COL_PITCHES).document(pitchId).get()
                 .addOnSuccessListener(doc -> {
@@ -141,6 +149,10 @@ public class OwnerRepository {
      */
     public void uploadPitchImage(String pitchId, android.net.Uri imageUri,
                                  MutableLiveData<Resource<String>> result) {
+        if (pitchId == null) {
+            result.setValue(Resource.error("ID sân không hợp lệ", null));
+            return;
+        }
         result.setValue(Resource.loading(null));
         String fileName = UUID.randomUUID() + ".jpg";
         StorageReference ref = mStorage.getReference()
@@ -194,6 +206,10 @@ public class OwnerRepository {
      */
     public void approveBooking(Booking booking, String ownerId,
                                MutableLiveData<Resource<Boolean>> result) {
+        if (booking == null || booking.getBookingId() == null || booking.getPitchId() == null || booking.getBookingDate() == null) {
+            result.setValue(Resource.error("Dữ liệu đơn hàng không hợp lệ", false));
+            return;
+        }
         if (!ownerId.equals(booking.getPitchOwnerId())) {
             result.setValue(Resource.error("Không có quyền duyệt đơn này", false));
             return;
@@ -240,6 +256,10 @@ public class OwnerRepository {
      */
     public void rejectBooking(Booking booking, String reason, String ownerId,
                               MutableLiveData<Resource<Boolean>> result) {
+        if (booking == null || booking.getBookingId() == null) {
+            result.setValue(Resource.error("Dữ liệu đơn hàng không hợp lệ", false));
+            return;
+        }
         if (!ownerId.equals(booking.getPitchOwnerId())) {
             result.setValue(Resource.error("Không có quyền từ chối đơn này", false));
             return;
@@ -262,6 +282,10 @@ public class OwnerRepository {
      */
     public void updateMatchStatus(String bookingId, String matchStatus,
                                   MutableLiveData<Resource<Boolean>> result) {
+        if (bookingId == null) {
+            result.setValue(Resource.error("ID đơn hàng không hợp lệ", false));
+            return;
+        }
         mDb.collection(Constants.COL_BOOKINGS).document(bookingId)
                 .update("matchStatus", matchStatus)
                 .addOnSuccessListener(v -> result.setValue(Resource.success(true)))

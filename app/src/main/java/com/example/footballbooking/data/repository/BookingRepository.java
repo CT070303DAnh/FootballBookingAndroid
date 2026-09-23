@@ -66,6 +66,10 @@ public class BookingRepository {
      */
     public void createBooking(Booking booking, Pitch pitch,
                               MutableLiveData<Resource<Booking>> result) {
+        if (booking == null || pitch == null || pitch.getPitchId() == null || booking.getBookingDate() == null) {
+            result.setValue(Resource.error("Dữ liệu đặt sân không hợp lệ", null));
+            return;
+        }
         result.setValue(Resource.loading(null));
 
         // Auto-generate bookingId
@@ -92,7 +96,7 @@ public class BookingRepository {
 
         batch.set(
                 mDb.collection(Constants.COL_PITCHES)
-                   .document(booking.getPitchId())
+                   .document(pitch.getPitchId())
                    .collection(Constants.SUB_AVAILABILITY)
                    .document(booking.getBookingDate()),
                 dateSlotUpdate,
@@ -100,15 +104,17 @@ public class BookingRepository {
         );
 
         // 3. Lưu bookingId vào bookingHistory của user
-        Map<String, String> historyRef = new HashMap<>();
-        historyRef.put("bookingRef", bookingId);
-        batch.set(
-                mDb.collection(Constants.COL_USERS)
-                   .document(booking.getCustomerId())
-                   .collection(Constants.SUB_BOOKING_HISTORY)
-                   .document(bookingId),
-                historyRef
-        );
+        if (booking.getCustomerId() != null) {
+            Map<String, String> historyRef = new HashMap<>();
+            historyRef.put("bookingRef", bookingId);
+            batch.set(
+                    mDb.collection(Constants.COL_USERS)
+                       .document(booking.getCustomerId())
+                       .collection(Constants.SUB_BOOKING_HISTORY)
+                       .document(bookingId),
+                    historyRef
+            );
+        }
 
         // 4. ★ FCM queue — thông báo cho Owner có đơn mới
         if (pitch != null && pitch.getOwnerId() != null && !pitch.getOwnerId().isEmpty()) {
@@ -187,6 +193,10 @@ public class BookingRepository {
      */
     public void cancelBooking(Booking booking,
                               MutableLiveData<Resource<Boolean>> result) {
+        if (booking == null || booking.getBookingId() == null || booking.getPitchId() == null || booking.getBookingDate() == null) {
+            result.setValue(Resource.error("Dữ liệu đơn hàng không hợp lệ", false));
+            return;
+        }
         result.setValue(Resource.loading(null));
 
         WriteBatch batch = mDb.batch();
@@ -249,6 +259,10 @@ public class BookingRepository {
      */
     public void getAvailableSlots(String pitchId, String dateString,
                                   MutableLiveData<Resource<List<TimeSlot>>> result) {
+        if (pitchId == null || dateString == null) {
+            result.setValue(Resource.error("Tham số không hợp lệ", null));
+            return;
+        }
         result.setValue(Resource.loading(null));
 
         // 1. Lấy danh sách khung giờ từ subcollection timeSlots của sân
