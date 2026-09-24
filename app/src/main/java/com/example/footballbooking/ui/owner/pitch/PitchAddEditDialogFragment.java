@@ -58,7 +58,7 @@ public class PitchAddEditDialogFragment extends BottomSheetDialogFragment implem
     private Marker locationMarker;
     private LatLng selectedLatLng = new LatLng(21.028511, 105.782302); // Mặc định Hà Nội
 
-    private static final String DEFAULT_PITCH_IMAGE = "https://placehold.co/800x400/png?text=Football+Pitch";
+    private static final String DEFAULT_PITCH_IMAGE = "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=800";
 
     private final ActivityResultLauncher<String> locationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {

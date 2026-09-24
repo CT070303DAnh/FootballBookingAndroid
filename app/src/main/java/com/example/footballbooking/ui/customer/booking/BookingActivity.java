@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.bumptech.glide.Glide;
+import com.example.footballbooking.R;
 import com.example.footballbooking.data.model.Pitch;
 import com.example.footballbooking.data.model.Service;
 import com.example.footballbooking.data.model.TimeSlot;
@@ -200,7 +201,11 @@ public class BookingActivity extends AppCompatActivity
         binding.tvBookingPitchType.setText("Sân " + pitch.getType() + " người");
         if (pitch.getImageUrls() != null && !pitch.getImageUrls().isEmpty()) {
             Glide.with(this).load(pitch.getImageUrls().get(0))
+                    .placeholder(R.drawable.bg_home_header)
+                    .error(R.drawable.bg_auth_header)
                     .centerCrop().into(binding.ivPitchThumb);
+        } else {
+            binding.ivPitchThumb.setImageResource(R.drawable.bg_home_header);
         }
     }
 

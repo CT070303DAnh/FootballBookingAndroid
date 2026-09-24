@@ -72,6 +72,7 @@ public class AdminPitchModerationAdapter extends RecyclerView.Adapter<AdminPitch
                 Glide.with(context)
                         .load(pitch.getImageUrls().get(0))
                         .placeholder(R.drawable.ic_launcher_background)
+                        .error(R.drawable.ic_launcher_background)
                         .centerCrop()
                         .into(binding.ivPitchImage);
             } else {

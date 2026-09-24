@@ -175,9 +175,13 @@ public class AiSuggestionFragment extends Fragment
 
         // Load icon
         if (weather.getWeather() != null && !weather.getWeather().isEmpty()) {
-            Glide.with(this)
-                    .load(weather.getWeather().get(0).getIconUrl())
-                    .into(binding.ivWeatherIcon);
+            String iconUrl = weather.getWeather().get(0).getIconUrl();
+            if (iconUrl != null && !iconUrl.isEmpty()) {
+                Glide.with(this)
+                        .load(iconUrl)
+                        .error(android.R.drawable.ic_menu_report_image)
+                        .into(binding.ivWeatherIcon);
+            }
         }
     }
 

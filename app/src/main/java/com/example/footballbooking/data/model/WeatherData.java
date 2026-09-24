@@ -62,6 +62,9 @@ public class WeatherData {
          * Size: @2x = 100x100px, @4x = 200x200px
          */
         public String getIconUrl() {
+            if (icon == null || icon.trim().isEmpty()) {
+                return null;
+            }
             return "https://openweathermap.org/img/wn/" + icon + "@2x.png";
         }
     }

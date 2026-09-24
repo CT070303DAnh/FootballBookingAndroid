@@ -114,6 +114,7 @@ public class AiPitchAdapter
             Glide.with(b.getRoot().getContext())
                     .load(img)
                     .placeholder(R.drawable.bg_home_header)
+                    .error(R.drawable.bg_auth_header)
                     .transition(DrawableTransitionOptions.withCrossFade(300))
                     .centerCrop()
                     .into(b.ivAiPitchImage);

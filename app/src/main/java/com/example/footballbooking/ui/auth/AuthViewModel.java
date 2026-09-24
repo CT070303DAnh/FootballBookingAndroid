@@ -58,8 +58,12 @@ public class AuthViewModel extends ViewModel {
      * Xử lý đăng ký tài khoản mới.
      */
     public void register(String email, String password,
-                         String displayName, String phone) {
-        authRepository.register(email, password, displayName, phone, authResult);
+                         String displayName, String phone, String role) {
+        if (com.example.footballbooking.utils.Constants.ROLE_OWNER.equals(role)) {
+            authRepository.registerOwner(email, password, displayName, phone, authResult);
+        } else {
+            authRepository.register(email, password, displayName, phone, authResult);
+        }
     }
 
     /**

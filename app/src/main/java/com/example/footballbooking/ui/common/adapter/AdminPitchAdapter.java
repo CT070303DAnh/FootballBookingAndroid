@@ -102,6 +102,7 @@ public class AdminPitchAdapter
             Glide.with(b.getRoot().getContext())
                     .load(imgUrl)
                     .placeholder(R.drawable.bg_home_header)
+                    .error(R.drawable.bg_auth_header)
                     .transition(DrawableTransitionOptions.withCrossFade())
                     .centerCrop()
                     .into(b.ivAdminPitchThumb);

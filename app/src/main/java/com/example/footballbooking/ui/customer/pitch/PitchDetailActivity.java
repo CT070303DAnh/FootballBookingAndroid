@@ -108,6 +108,7 @@ public class PitchDetailActivity extends AppCompatActivity {
         Glide.with(this)
                 .load(imageUrl)
                 .placeholder(com.example.footballbooking.R.drawable.bg_home_header)
+                .error(com.example.footballbooking.R.drawable.bg_auth_header)
                 .transition(DrawableTransitionOptions.withCrossFade())
                 .centerCrop()
                 .into(binding.ivPitchBanner);

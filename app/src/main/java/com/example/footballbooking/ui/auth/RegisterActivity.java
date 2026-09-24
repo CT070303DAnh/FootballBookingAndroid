@@ -71,9 +71,13 @@ public class RegisterActivity extends AppCompatActivity {
                 case SUCCESS:
                     showLoading(false);
                     if (resource.data != null) {
-                        // Đăng ký thành công → chuyển thẳng vào app Customer
+                        if (com.example.footballbooking.utils.Constants.ROLE_OWNER_PENDING.equals(resource.data.getRole())) {
+                            android.widget.Toast.makeText(this, "Đăng ký thành công! Vui lòng chờ Admin xét duyệt.", android.widget.Toast.LENGTH_LONG).show();
+                        } else {
+                            android.widget.Toast.makeText(this, "Đăng ký thành công!", android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                        // Đăng ký thành công → chuyển về Login
                         Intent intent = new Intent(this, LoginActivity.class);
-                        // TODO: thay bằng CustomerMainActivity.class
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
                                         Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         startActivity(intent);
@@ -96,6 +100,11 @@ public class RegisterActivity extends AppCompatActivity {
         String email            = getText(binding.etEmail);
         String password         = getText(binding.etPassword);
         String confirmPassword  = getText(binding.etConfirmPassword);
+        
+        String role = com.example.footballbooking.utils.Constants.ROLE_CUSTOMER;
+        if (binding.rbOwner.isChecked()) {
+            role = com.example.footballbooking.utils.Constants.ROLE_OWNER;
+        }
 
         // Validate ở ViewModel
         String error = authViewModel.validateRegisterInput(
@@ -106,7 +115,7 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        authViewModel.register(email, password, displayName, phone);
+        authViewModel.register(email, password, displayName, phone, role);
     }
 
     /** Helper: lấy text an toàn từ EditText */
