@@ -75,6 +75,18 @@ public class PitchDetailActivity extends AppCompatActivity {
             intent.putExtra(Constants.EXTRA_PITCH_ID, currentPitch.getPitchId());
             startActivity(intent);
         });
+
+        binding.btnCallOwner.setOnClickListener(v -> {
+            if (currentPitch == null || currentPitch.getOwnerPhone() == null
+                    || currentPitch.getOwnerPhone().isEmpty()) {
+                Snackbar.make(v, "Không có số điện thoại chủ sân", Snackbar.LENGTH_SHORT).show();
+                return;
+            }
+            String phone = currentPitch.getOwnerPhone().replaceAll("\\s+", "");
+            Intent callIntent = new Intent(Intent.ACTION_DIAL,
+                    android.net.Uri.parse("tel:" + phone));
+            startActivity(callIntent);
+        });
     }
 
     private void observeViewModel() {
@@ -159,5 +171,21 @@ public class PitchDetailActivity extends AppCompatActivity {
                 binding.chipGroupAmenities.addView(chip);
             }
         }
+
+        // Owner info
+        String ownerName = pitch.getOwnerName();
+        String ownerPhone = pitch.getOwnerPhone();
+        if (ownerName != null && !ownerName.isEmpty()) {
+            binding.tvOwnerName.setText(ownerName);
+        } else {
+            binding.tvOwnerName.setText("Chủ sân");
+        }
+        if (ownerPhone != null && !ownerPhone.isEmpty()) {
+            binding.tvOwnerPhone.setText(ownerPhone);
+        } else {
+            binding.tvOwnerPhone.setText("Chưa cập nhật");
+            binding.btnCallOwner.setEnabled(false);
+        }
     }
 }
+

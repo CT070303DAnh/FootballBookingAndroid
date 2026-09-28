@@ -19,6 +19,7 @@ import com.example.footballbooking.data.model.Booking;
 import com.example.footballbooking.databinding.FragmentAdminBookingBinding;
 import com.example.footballbooking.ui.common.adapter.OwnerBookingAdapter;
 import com.example.footballbooking.ui.owner.OwnerViewModel;
+import com.example.footballbooking.utils.BookingExpiryWorker;
 import com.example.footballbooking.utils.Constants;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
@@ -70,7 +71,12 @@ public class OwnerBookingFragment extends Fragment
             @Override public void onTabReselected(TabLayout.Tab tab) {}
         });
 
-        observeViewModel();
+        // Tự động từ chối đơn quá hạn trước khi hiển thị danh sách
+        BookingExpiryWorker.autoRejectExpiredBookings(() -> {
+            if (isAdded() && ownerViewModel != null) {
+                observeViewModel();
+            }
+        });
     }
 
     private void observeViewModel() {

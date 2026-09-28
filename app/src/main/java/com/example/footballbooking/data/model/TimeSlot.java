@@ -57,7 +57,23 @@ public class TimeSlot {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public boolean isAvailable() { return available; }
+    public boolean isBooked() {
+        return "booked".equalsIgnoreCase(status)
+                || "pending".equalsIgnoreCase(status)
+                || "reserved".equalsIgnoreCase(status);
+    }
+
+    public boolean isAvailable() {
+        if ("booked".equalsIgnoreCase(status)
+                || "pending".equalsIgnoreCase(status)
+                || "reserved".equalsIgnoreCase(status)
+                || "past".equalsIgnoreCase(status)
+                || "unavailable".equalsIgnoreCase(status)) {
+            return false;
+        }
+        return available;
+    }
+
     public void setAvailable(boolean available) { this.available = available; }
 
 

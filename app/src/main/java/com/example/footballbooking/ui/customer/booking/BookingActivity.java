@@ -154,6 +154,7 @@ public class BookingActivity extends AppCompatActivity
                     else if (which == 2) binding.rbPayLater.setChecked(true);
                 })
                 .setPositiveButton("Xác nhận", (dialog, which) -> {
+                    binding.btnConfirmBooking.setEnabled(false);
                     String note = binding.etNote.getText() != null
                             ? binding.etNote.getText().toString() : "";
                     String method;
@@ -172,28 +173,7 @@ public class BookingActivity extends AppCompatActivity
 
     /** Load thông tin sân và user để khởi tạo ViewModel */
     private void loadInitialData(String pitchId) {
-        // Load pitch
-        PitchRepository.getInstance().getPitchById(pitchId,
-                new androidx.lifecycle.MutableLiveData<Resource<Pitch>>() {{
-                    observe(BookingActivity.this, resource -> {
-                        if (resource != null && resource.isSuccess() && resource.data != null) {
-                            bindPitchInfo(resource.data);
-                            // Load user và init booking
-                            loadCurrentUserAndInit(resource.data);
-                        }
-                    });
-                }});
-    }
-
-    private void loadCurrentUserAndInit(Pitch pitch) {
-        AuthRepository.getInstance().checkCurrentUser(
-                new androidx.lifecycle.MutableLiveData<Resource<User>>() {{
-                    observe(BookingActivity.this, resource -> {
-                        if (resource != null && resource.isSuccess() && resource.data != null) {
-                            bookingViewModel.initBooking(pitch, resource.data);
-                        }
-                    });
-                }});
+        bookingViewModel.loadInitialData(pitchId);
     }
 
     private void bindPitchInfo(Pitch pitch) {
@@ -210,6 +190,33 @@ public class BookingActivity extends AppCompatActivity
     }
 
     private void observeViewModel() {
+        // Observe Pitch
+        bookingViewModel.getPitchLiveData().observe(this, resource -> {
+            if (resource != null && resource.isSuccess() && resource.data != null) {
+                bindPitchInfo(resource.data);
+                bookingViewModel.setSelectedPitch(resource.data);
+            }
+        });
+
+        // Observe User
+        bookingViewModel.getUserLiveData().observe(this, resource -> {
+            if (resource != null && resource.isSuccess()) {
+                if (resource.data != null) {
+                    bookingViewModel.setCurrentUser(resource.data);
+                } else {
+                    com.google.firebase.auth.FirebaseUser fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+                    if (fbUser != null) {
+                        User user = new User();
+                        user.setUid(fbUser.getUid());
+                        user.setDisplayName(fbUser.getDisplayName() != null && !fbUser.getDisplayName().isEmpty() ? fbUser.getDisplayName() : "Khách hàng");
+                        user.setEmail(fbUser.getEmail() != null ? fbUser.getEmail() : "");
+                        user.setPhoneNumber(fbUser.getPhoneNumber() != null ? fbUser.getPhoneNumber() : "");
+                        bookingViewModel.setCurrentUser(user);
+                    }
+                }
+            }
+        });
+
         // Slots available
         bookingViewModel.getAvailableSlots().observe(this, resource -> {
             if (resource == null) return;
@@ -274,8 +281,11 @@ public class BookingActivity extends AppCompatActivity
                             .show();
                 }
             } else if (resource.isError()) {
-                Snackbar.make(binding.getRoot(),
-                        "Đặt sân thất bại: " + resource.message, Snackbar.LENGTH_LONG).show();
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                        .setTitle("⚠️ Thông báo đặt sân")
+                        .setMessage(resource.message != null ? resource.message : "Khung giờ này đã được đặt rồi!")
+                        .setPositiveButton("Đồng ý", null)
+                        .show();
             }
         });
     }
@@ -283,7 +293,17 @@ public class BookingActivity extends AppCompatActivity
     // --- TimeSlotAdapter Callback ---
     @Override
     public void onSlotClick(TimeSlot slot) {
-        if (!slot.isAvailable()) return;
+        if (!slot.isAvailable()) {
+            String msg = "past".equalsIgnoreCase(slot.getStatus())
+                    ? "Khung giờ này đã quá thời gian, không thể đặt!"
+                    : "Khung giờ này đã có người đặt rồi! Vui lòng chọn khung giờ khác.";
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle("⚠️ Thông báo khung giờ")
+                    .setMessage(msg)
+                    .setPositiveButton("Đồng ý", null)
+                    .show();
+            return;
+        }
         bookingViewModel.onSlotSelected(slot);
         timeSlotAdapter.setSelectedSlotId(
                 bookingViewModel.getSelectedSlot() != null ? bookingViewModel.getSelectedSlot().getSlotId() : null);

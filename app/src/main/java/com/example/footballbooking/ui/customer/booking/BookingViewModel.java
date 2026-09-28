@@ -8,7 +8,9 @@ import com.example.footballbooking.data.model.Pitch;
 import com.example.footballbooking.data.model.Service;
 import com.example.footballbooking.data.model.TimeSlot;
 import com.example.footballbooking.data.model.User;
+import com.example.footballbooking.data.repository.AuthRepository;
 import com.example.footballbooking.data.repository.BookingRepository;
+import com.example.footballbooking.data.repository.PitchRepository;
 import com.example.footballbooking.utils.Constants;
 import com.example.footballbooking.utils.Resource;
 
@@ -40,6 +42,8 @@ public class BookingViewModel extends ViewModel {
     private final MutableLiveData<Resource<List<TimeSlot>>> availableSlots = new MutableLiveData<>();
     private final MutableLiveData<Resource<Booking>>  createBookingResult = new MutableLiveData<>();
     private final MutableLiveData<Resource<Boolean>>  cancelBookingResult = new MutableLiveData<>();
+    private final MutableLiveData<Resource<Pitch>> pitchLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Resource<User>> userLiveData = new MutableLiveData<>();
 
     // ===== State đang chọn của user =====
     private Pitch selectedPitch;           // Sân đang xem
@@ -71,6 +75,8 @@ public class BookingViewModel extends ViewModel {
     public MutableLiveData<Resource<List<Service>>> getServicesLiveData() { return servicesLiveData; }
     public MutableLiveData<Resource<Booking>> getCreateBookingResult() { return createBookingResult; }
     public MutableLiveData<Resource<Boolean>> getCancelBookingResult() { return cancelBookingResult; }
+    public MutableLiveData<Resource<Pitch>> getPitchLiveData() { return pitchLiveData; }
+    public MutableLiveData<Resource<User>> getUserLiveData() { return userLiveData; }
 
     public String getSelectedDate() { return selectedDate; }
     public TimeSlot getSelectedSlot() { return selectedSlot; }
@@ -108,6 +114,22 @@ public class BookingViewModel extends ViewModel {
     // ============================================================
     // INIT: Thiết lập context (gọi từ Activity sau khi nhận Intent)
     // ============================================================
+
+    public void loadInitialData(String pitchId) {
+        if (pitchId == null) return;
+        PitchRepository.getInstance().getPitchById(pitchId, pitchLiveData);
+        AuthRepository.getInstance().checkCurrentUser(userLiveData);
+    }
+
+    public void setSelectedPitch(Pitch pitch) {
+        this.selectedPitch = pitch;
+        loadSlotsForDate(selectedDate);
+        loadServices();
+    }
+
+    public void setCurrentUser(User user) {
+        this.currentUser = user;
+    }
 
     public void initBooking(Pitch pitch, User user) {
         this.selectedPitch = pitch;
@@ -258,22 +280,43 @@ public class BookingViewModel extends ViewModel {
     private Booking buildBookingObject(String note, String paymentMethod) {
         Booking booking = new Booking();
 
+        // Null-safety check cho currentUser
+        if (currentUser == null) {
+            com.google.firebase.auth.FirebaseUser fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+            if (fbUser != null) {
+                currentUser = new User();
+                currentUser.setUid(fbUser.getUid());
+                currentUser.setDisplayName(fbUser.getDisplayName() != null && !fbUser.getDisplayName().isEmpty() ? fbUser.getDisplayName() : "Khách hàng");
+                currentUser.setEmail(fbUser.getEmail() != null ? fbUser.getEmail() : "");
+                currentUser.setPhoneNumber(fbUser.getPhoneNumber() != null ? fbUser.getPhoneNumber() : "");
+            }
+        }
+
+        String customerUid = currentUser != null ? currentUser.getUid() : "";
+        String customerName = currentUser != null && currentUser.getDisplayName() != null ? currentUser.getDisplayName() : "Khách hàng";
+        String customerPhone = currentUser != null && currentUser.getPhoneNumber() != null ? currentUser.getPhoneNumber() : "";
+
         // Customer info (denormalized)
-        booking.setCustomerId(currentUser.getUid());
-        booking.setCustomerName(currentUser.getDisplayName());
-        booking.setCustomerPhone(currentUser.getPhoneNumber());
+        booking.setCustomerId(customerUid);
+        booking.setCustomerName(customerName);
+        booking.setCustomerPhone(customerPhone);
 
         // Pitch info (denormalized)
-        booking.setPitchId(selectedPitch.getPitchId());
-        booking.setPitchName(selectedPitch.getName());
-        booking.setPitchAddress(selectedPitch.getAddress());
-        booking.setPitchType(selectedPitch.getType());
+        if (selectedPitch != null) {
+            booking.setPitchId(selectedPitch.getPitchId());
+            booking.setPitchName(selectedPitch.getName());
+            booking.setPitchAddress(selectedPitch.getAddress());
+            booking.setPitchType(selectedPitch.getType());
+            booking.setBasePrice(selectedPitch.getBasePrice());
+        }
 
         // Booking info
         booking.setBookingDate(selectedDate);
-        booking.setSlotId(selectedSlot.getSlotId());
-        booking.setStartTime(selectedSlot.getStartTime());
-        booking.setEndTime(selectedSlot.getEndTime());
+        if (selectedSlot != null) {
+            booking.setSlotId(selectedSlot.getSlotId());
+            booking.setStartTime(selectedSlot.getStartTime());
+            booking.setEndTime(selectedSlot.getEndTime());
+        }
 
         // Services (convert List<Service> → List<Map>)
         List<Map<String, Object>> servicesMapped = new ArrayList<>();
@@ -290,8 +333,7 @@ public class BookingViewModel extends ViewModel {
         booking.setTotalServicePrice(totalServicePrice);
 
         // Pricing
-        double surcharge = selectedSlot.isPeakHour() ? selectedSlot.getSurcharge() : 0;
-        booking.setBasePrice(selectedPitch.getBasePrice());
+        double surcharge = (selectedSlot != null && selectedSlot.isPeakHour()) ? selectedSlot.getSurcharge() : 0;
         booking.setSurcharge(surcharge);
         booking.setTotalAmount(totalAmount);
 
@@ -317,9 +359,16 @@ public class BookingViewModel extends ViewModel {
         }
     }
 
+    public void detachSlotsListener() {
+        if (bookingRepository != null) {
+            bookingRepository.detachSlotsListener();
+        }
+    }
+
     @Override
     protected void onCleared() {
         super.onCleared();
+        detachSlotsListener();
         bookingRepository.detachBookingListListener();
     }
 }

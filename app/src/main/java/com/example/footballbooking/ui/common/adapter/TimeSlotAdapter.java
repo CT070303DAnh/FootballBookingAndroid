@@ -1,6 +1,5 @@
 package com.example.footballbooking.ui.common.adapter;
 
-import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,9 +14,11 @@ import com.example.footballbooking.R;
 import com.example.footballbooking.data.model.TimeSlot;
 import com.example.footballbooking.databinding.ItemTimeSlotBinding;
 
+import java.util.Objects;
+
 /**
  * TimeSlotAdapter — Grid adapter cho lưới chọn khung giờ.
- * Hiển thị màu khác nhau theo trạng thái: available (xanh), booked (xám), selected (đậm xanh).
+ * Hiển thị màu khác nhau theo trạng thái: available (xanh), booked (đã đặt - đỏ/xám), selected (đậm xanh).
  */
 public class TimeSlotAdapter extends ListAdapter<TimeSlot, TimeSlotAdapter.SlotViewHolder> {
 
@@ -39,7 +40,7 @@ public class TimeSlotAdapter extends ListAdapter<TimeSlot, TimeSlotAdapter.SlotV
                     return o.isActive() == n.isActive()
                             && o.isPeakHour() == n.isPeakHour()
                             && o.isAvailable() == n.isAvailable()
-                            && (o.getStatus() != null && o.getStatus().equals(n.getStatus()));
+                            && Objects.equals(o.getStatus(), n.getStatus());
                 }
             };
 
@@ -79,31 +80,35 @@ public class TimeSlotAdapter extends ListAdapter<TimeSlot, TimeSlotAdapter.SlotV
             b.tvSlotTime.setText(slot.getStartTime() + " - " + slot.getEndTime());
             b.tvPeakBadge.setVisibility(slot.isPeakHour() ? View.VISIBLE : View.GONE);
 
-            boolean isAvailable = slot.isAvailable();
+            boolean isBooked = slot.isBooked()
+                    || "booked".equalsIgnoreCase(slot.getStatus())
+                    || "pending".equalsIgnoreCase(slot.getStatus());
+            boolean isPast = "past".equalsIgnoreCase(slot.getStatus());
+            boolean isAvailable = slot.isAvailable() && !isBooked && !isPast;
+
             boolean isSelected = isAvailable && slot.getSlotId() != null
                     && slot.getSlotId().equals(selectedSlotId);
 
             if (!isAvailable) {
                 // Khung giờ đã được đặt hoặc đã qua
-                b.cardTimeSlot.setAlpha(0.55f);
+                b.cardTimeSlot.setAlpha(0.65f);
                 b.cardTimeSlot.setStrokeWidth(1);
                 b.cardTimeSlot.setStrokeColor(ContextCompat.getColor(ctx, R.color.divider));
                 b.cardTimeSlot.setCardBackgroundColor(ContextCompat.getColor(ctx, R.color.background_dark));
                 b.tvSlotTime.setTextColor(ContextCompat.getColor(ctx, R.color.text_secondary));
 
-                if ("past".equalsIgnoreCase(slot.getStatus())) {
+                if (isPast) {
                     b.tvSlotStatus.setText("Đã qua");
                     b.tvSlotStatus.setTextColor(ContextCompat.getColor(ctx, R.color.text_secondary));
                 } else {
+                    // Trạng thái cho khung giờ đã được đặt
                     b.tvSlotStatus.setText("🔒 Đã đặt");
                     b.tvSlotStatus.setTextColor(ContextCompat.getColor(ctx, R.color.status_rejected));
                 }
 
-                b.cardTimeSlot.setOnClickListener(v ->
-                        android.widget.Toast.makeText(ctx,
-                                "Khung giờ này không khả dụng!",
-                                android.widget.Toast.LENGTH_SHORT).show()
-                );
+                b.cardTimeSlot.setOnClickListener(v -> {
+                    if (listener != null) listener.onSlotClick(slot);
+                });
             } else {
                 // Khung giờ còn trống
                 b.cardTimeSlot.setAlpha(1.0f);

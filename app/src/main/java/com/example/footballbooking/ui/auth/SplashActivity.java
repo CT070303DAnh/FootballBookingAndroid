@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.example.footballbooking.databinding.ActivitySplashBinding;
 import com.example.footballbooking.utils.Constants;
 import com.example.footballbooking.utils.FirestoreSeeder;
+import com.example.footballbooking.utils.BookingExpiryWorker;
 
 /**
  * SplashActivity — Màn hình khởi động.
@@ -32,6 +33,9 @@ public class SplashActivity extends AppCompatActivity {
         // FirestoreSeeder.seedAll();
         binding = ActivitySplashBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        // Tự động từ chối các đơn pending đã quá giờ (chạy nền, không block UI)
+        BookingExpiryWorker.autoRejectExpiredBookings(null);
 
         // Khởi tạo ViewModel — chia sẻ với các Auth screen
         authViewModel = new ViewModelProvider(this).get(AuthViewModel.class);

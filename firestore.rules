@@ -114,12 +114,8 @@ service cloud.firestore {
     // ===== COLLECTION: bookings =====
     match /bookings/{bookingId} {
 
-      // Customer: chỉ đọc đơn CỦA MÌNH
-      // Owner: đọc đơn trên SÂN CỦA MÌNH (pitchOwnerId == uid)
-      // Admin: đọc TẤT CẢ
-      allow read: if isAdmin()
-                  || (isAuthenticated() && resource.data.customerId == request.auth.uid)
-                  || (isOwner() && resource.data.pitchOwnerId == request.auth.uid);
+      // Tất cả user đã đăng nhập đều có thể đọc đơn đặt (để kiểm tra khung giờ khả dụng của sân)
+      allow read: if isAuthenticated();
 
       // Customer tạo đơn mới (pitchOwnerId được gắn tự động)
       allow create: if isAuthenticated()
