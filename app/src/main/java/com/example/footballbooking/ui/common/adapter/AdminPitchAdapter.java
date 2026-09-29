@@ -95,7 +95,7 @@ public class AdminPitchAdapter
                     b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_cancelled);
                     break;
             }
-
+//test
             // Thumbnail
             String imgUrl = (pitch.getImageUrls() != null && !pitch.getImageUrls().isEmpty())
                     ? pitch.getImageUrls().get(0) : null;
