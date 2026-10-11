@@ -77,6 +77,7 @@ public class RegisterActivity extends AppCompatActivity {
                             android.widget.Toast.makeText(this, "Đăng ký thành công!", android.widget.Toast.LENGTH_SHORT).show();
                         }
                         // Đăng ký thành công → chuyển về Login
+                        com.example.footballbooking.data.repository.AuthRepository.getInstance().logout();
                         Intent intent = new Intent(this, LoginActivity.class);
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
                                         Intent.FLAG_ACTIVITY_CLEAR_TASK);

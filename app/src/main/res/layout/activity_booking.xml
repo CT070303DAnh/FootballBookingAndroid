@@ -90,75 +90,92 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ===== BƯỚC 1: CHỌN NGÀY ===== -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="1. Chọn ngày"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginTop="20dp"
-                android:layout_marginBottom="10dp" />
-
-            <!-- CalendarView để chọn ngày -->
-            <com.google.android.material.card.MaterialCardView
-                style="@style/CardStyle"
+            <LinearLayout
+                android:id="@+id/layout_booking_date_selection"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
-                <CalendarView
-                    android:id="@+id/calendar_view"
+                <!-- ===== BƯỚC 1: CHỌN NGÀY ===== -->
+                <TextView
+                    android:id="@+id/tv_booking_date_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1. Chọn ngày"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="10dp" />
+
+                <!-- CalendarView để chọn ngày -->
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/CardStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <CalendarView
+                        android:id="@+id/calendar_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:dateTextAppearance="@android:style/TextAppearance.Small"
+                        android:minDate="@{System.currentTimeMillis()}" />
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_booking_slot_selection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- ===== BƯỚC 2: CHỌN KHUNG GIỜ ===== -->
+                <TextView
+                    android:id="@+id/tv_booking_slot_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="2. Chọn khung giờ"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="10dp" />
+
+                <!-- Loading skeleton cho time slots -->
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmer_slots"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:dateTextAppearance="@android:style/TextAppearance.Small"
-                    android:minDate="@{System.currentTimeMillis()}" />
-            </com.google.android.material.card.MaterialCardView>
+                    android:visibility="gone">
+                    <LinearLayout android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_skeleton_item"/>
+                </com.facebook.shimmer.ShimmerFrameLayout>
 
-            <!-- ===== BƯỚC 2: CHỌN KHUNG GIỜ ===== -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="2. Chọn khung giờ"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginTop="20dp"
-                android:layout_marginBottom="10dp" />
+                <!-- Grid khung giờ -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_time_slots"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    tools:listitem="@layout/item_time_slot"
+                    tools:itemCount="6" />
 
-            <!-- Loading skeleton cho time slots -->
-            <com.facebook.shimmer.ShimmerFrameLayout
-                android:id="@+id/shimmer_slots"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone">
-                <LinearLayout android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:background="@drawable/bg_skeleton_item"/>
-            </com.facebook.shimmer.ShimmerFrameLayout>
-
-            <!-- Grid khung giờ -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rv_time_slots"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_time_slot"
-                tools:itemCount="6" />
-
-            <TextView
-                android:id="@+id/tv_no_slots"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Chưa có khung giờ nào cho ngày này."
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:gravity="center"
-                android:padding="16dp"
-                android:visibility="gone" />
+                <TextView
+                    android:id="@+id/tv_no_slots"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Chưa có khung giờ nào cho ngày này."
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:gravity="center"
+                    android:padding="16dp"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <!-- ===== BƯỚC 3: DỊCH VỤ KÈM THEO ===== -->
             <TextView
+                android:id="@+id/tv_booking_services_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="3. Dịch vụ kèm theo (tuỳ chọn)"
@@ -178,6 +195,7 @@
 
             <!-- ===== GHI CHÚ ===== -->
             <TextView
+                android:id="@+id/tv_booking_note_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="4. Ghi chú"
@@ -207,6 +225,7 @@
 
             <!-- ===== BƯỚC 5: PHƯƠNG THỨC THANH TOÁN ===== -->
             <TextView
+                android:id="@+id/tv_booking_payment_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="5. Phương thức thanh toán"
@@ -231,7 +250,7 @@
                         android:id="@+id/rb_vnpay"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="💳 Thanh toán ngay (VNPay)"
+                        android:text="💳 Thanh toán ngay (VietQR - PayOS)"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:checked="true" />

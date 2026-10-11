@@ -42,6 +42,8 @@ public class Service {
     public String getIconUrl() { return iconUrl; }
     public void setIconUrl(String iconUrl) { this.iconUrl = iconUrl; }
 
+    @com.google.firebase.firestore.PropertyName("isActive")
     public boolean isActive() { return isActive; }
+    @com.google.firebase.firestore.PropertyName("isActive")
     public void setActive(boolean active) { isActive = active; }
 }

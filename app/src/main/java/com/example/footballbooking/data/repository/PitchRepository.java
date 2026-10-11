@@ -23,8 +23,12 @@ public class PitchRepository {
 
     // Lưu listener để detach khi ViewModel bị destroyed (tránh memory leak)
     private ListenerRegistration pitchListListener;
+    private long listGeneration;
 
     private static PitchRepository instance;
+
+    /** A ViewModel owns this instance and its listeners. */
+    public static PitchRepository createScoped() { return new PitchRepository(); }
 
     private PitchRepository() {
         mDb = FirebaseFirestore.getInstance();
@@ -50,9 +54,11 @@ public class PitchRepository {
 
         // Detach listener cũ nếu đang có (tránh duplicate)
         detachPitchListListener();
+        final long generation = listGeneration;
 
         pitchListListener = mDb.collection(Constants.COL_PITCHES)
                 .addSnapshotListener((snapshots, error) -> {
+                    if (generation != listGeneration) return;
                     if (error != null) {
                         result.setValue(Resource.error("Lỗi tải danh sách sân: " + error.getMessage(), null));
                         return;
@@ -85,10 +91,12 @@ public class PitchRepository {
     public void getPitchesByType(String type, MutableLiveData<Resource<List<Pitch>>> result) {
         result.setValue(Resource.loading(null));
         detachPitchListListener();
+        final long generation = listGeneration;
 
         pitchListListener = mDb.collection(Constants.COL_PITCHES)
                 .whereEqualTo("type", type)
                 .addSnapshotListener((snapshots, error) -> {
+                    if (generation != listGeneration) return;
                     if (error != null) {
                         result.setValue(Resource.error(error.getMessage(), null));
                         return;
@@ -147,6 +155,8 @@ public class PitchRepository {
         }
 
         result.setValue(Resource.loading(null));
+        detachPitchListListener();
+        final long generation = listGeneration;
         String normalizedQuery = query.trim();
         // Kỹ thuật: tìm documents có name >= query VÀ name < query + "\uf8ff"
         // "\uf8ff" là ký tự Unicode cao nhất, đảm bảo lấy hết prefix
@@ -157,12 +167,14 @@ public class PitchRepository {
                 .whereLessThanOrEqualTo("name", endQuery)
                 .get()
                 .addOnSuccessListener(snapshots -> {
+                    if (generation != listGeneration) return;
                     List<Pitch> pitches = snapshots.toObjects(Pitch.class);
+                    pitches.removeIf(p -> !Constants.PITCH_AVAILABLE.equals(p.getStatus()));
                     result.setValue(Resource.success(pitches));
                 })
-                .addOnFailureListener(e ->
-                        result.setValue(Resource.error(e.getMessage(), null))
-                );
+                .addOnFailureListener(e -> {
+                    if (generation == listGeneration) result.setValue(Resource.error(e.getMessage(), null));
+                });
     }
 
     // ============================================================
@@ -171,6 +183,7 @@ public class PitchRepository {
 
     /** Gọi trong ViewModel.onCleared() để tránh memory leak */
     public void detachPitchListListener() {
+        listGeneration++;
         if (pitchListListener != null) {
             pitchListListener.remove();
             pitchListListener = null;

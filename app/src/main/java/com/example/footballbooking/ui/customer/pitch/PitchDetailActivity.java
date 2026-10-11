@@ -60,7 +60,7 @@ public class PitchDetailActivity extends AppCompatActivity {
 
     private void setupToolbar() {
         setSupportActionBar(binding.toolbar);
-        binding.toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        binding.toolbar.setNavigationOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
     }
 
     private void setupClickListeners() {
@@ -182,10 +182,17 @@ public class PitchDetailActivity extends AppCompatActivity {
         }
         if (ownerPhone != null && !ownerPhone.isEmpty()) {
             binding.tvOwnerPhone.setText(ownerPhone);
+            binding.btnCallOwner.setEnabled(true);
         } else {
             binding.tvOwnerPhone.setText("Chưa cập nhật");
             binding.btnCallOwner.setEnabled(false);
         }
+
+        // Thông tin nhận tiền của chủ sân: mặc định MB Bank, tài khoản là số điện thoại.
+        binding.tvOwnerBankName.setText(Constants.DEFAULT_OWNER_BANK_NAME);
+        String ownerBankAccount = Constants.normalizeOwnerBankAccount(ownerPhone);
+        binding.tvOwnerBankAccount.setText(ownerBankAccount.isEmpty()
+                ? "Chưa cập nhật" : ownerBankAccount);
     }
 }
 

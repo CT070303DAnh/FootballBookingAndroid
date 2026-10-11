@@ -15,3 +15,10 @@
 local.properties
 .idea/
 */build/
+.env
+*.env
+server/.env
+backend/.env
+node_modules/
+*/node_modules/
+*.log

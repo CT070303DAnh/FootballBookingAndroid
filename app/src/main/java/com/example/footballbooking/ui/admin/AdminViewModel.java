@@ -73,7 +73,7 @@ public class AdminViewModel extends ViewModel {
 
         Map<Integer, Double> dailyRevenue = new HashMap<>();
         for (Booking b : bookings) {
-            if (b.getBookingDate() == null) continue;
+            if (!isRevenueBooking(b)) continue;
             try {
                 String[] parts = b.getBookingDate().split("-");
                 int day = Integer.parseInt(parts[2]);
@@ -106,10 +106,14 @@ public class AdminViewModel extends ViewModel {
         return dist;
     }
 
+    private boolean isRevenueBooking(Booking b) {
+        return com.example.footballbooking.utils.RevenuePolicy.includes(b, currentReportMonth);
+    }
+
     public double calcTotalRevenue(List<Booking> bookings) {
         if (bookings == null) return 0;
         double total = 0;
-        for (Booking b : bookings) total += b.getTotalAmount();
+        for (Booking b : bookings) if (isRevenueBooking(b)) total += b.getTotalAmount();
         return total;
     }
 
@@ -124,6 +128,17 @@ public class AdminViewModel extends ViewModel {
     public void updateUserStatus(String userId, String status) {
         adminRepository.updateUserStatus(userId, status, actionResult);
     }
+
+    private final MutableLiveData<Resource<Boolean>> ownerApprovalResult = new MutableLiveData<>();
+
+    public MutableLiveData<Resource<Boolean>> getOwnerApprovalResult() { return ownerApprovalResult; }
+
+    public void approveOwner(String userId) {
+        if (ownerApprovalResult.getValue() != null && ownerApprovalResult.getValue().isLoading()) return;
+        adminRepository.approveOwner(userId, ownerApprovalResult);
+    }
+
+    public void clearOwnerApprovalResult() { ownerApprovalResult.setValue(null); }
 
     // ============================================================
     // PITCH MODERATION

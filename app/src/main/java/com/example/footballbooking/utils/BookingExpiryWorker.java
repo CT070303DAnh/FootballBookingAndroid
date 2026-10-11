@@ -1,46 +1,68 @@
-﻿package com.example.footballbooking.utils;
+package com.example.footballbooking.utils;
 
 import android.util.Log;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.firestore.WriteBatch;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.Source;
+import com.google.firebase.firestore.Query;
+import com.example.footballbooking.data.repository.BookingRepository;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * BookingExpiryWorker — Tu dong tu choi don dat san qua gio chua duyet.
- *
- * LOGIC:
- * - Query tat ca booking co bookingStatus = "pending"
- * - Voi moi don, ghep bookingDate + endTime thanh datetime
- * - Neu datetime do da qua thoi diem hien tai -> reject don + tra slot ve available
- *
- * CACH GOI (tu SplashActivity hoac khi mo Dashboard):
- *   BookingExpiryWorker.autoRejectExpiredBookings(null);
  */
 public class BookingExpiryWorker {
 
     private static final String TAG = "ExpiryWorker";
 
-    /**
-     * Chay auto-reject. Callback onComplete (nullable) duoc goi sau khi xu ly xong.
-     */
     public static void autoRejectExpiredBookings(Runnable onComplete) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+        db.collection(Constants.COL_USERS).document(user.getUid()).get(Source.SERVER)
+                .addOnSuccessListener(profile -> {
+                    String role = profile.getString("role");
+                    if ("blocked".equals(profile.getString("status"))
+                            || !("admin".equals(role) || "owner".equals(role))) {
+                        if (onComplete != null) onComplete.run();
+                        return;
+                    }
+                    Query query = db.collection(Constants.COL_BOOKINGS)
+                            .whereEqualTo("bookingStatus", Constants.STATUS_PENDING);
+                    if ("owner".equals(role)) query = query.whereEqualTo("pitchOwnerId", user.getUid());
+                    rejectExpired(query, onComplete);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Không thể kiểm tra quyền xử lý đơn hết hạn", e);
+                    if (onComplete != null) onComplete.run();
+                });
+    }
 
-        String nowDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-        String nowTime = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
+    private static void rejectExpired(Query query, Runnable onComplete) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.US);
+        dateFormat.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+        timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+        Date now = new Date();
+        String nowDate = dateFormat.format(now);
+        String nowTime = timeFormat.format(now);
 
         Log.d(TAG, "Dang kiem tra don qua han... [" + nowDate + " " + nowTime + "]");
 
-        db.collection(Constants.COL_BOOKINGS)
-                .whereEqualTo("bookingStatus", Constants.STATUS_PENDING)
-                .get()
+        query.get(Source.SERVER)
                 .addOnSuccessListener(snapshot -> {
                     if (snapshot == null || snapshot.isEmpty()) {
                         Log.d(TAG, "Khong co don pending nao can kiem tra.");
@@ -48,15 +70,12 @@ public class BookingExpiryWorker {
                         return;
                     }
 
-                    WriteBatch batch = db.batch();
-                    int[] expiredCount = {0};
+                    List<Task<Void>> operations = new ArrayList<>();
 
                     for (QueryDocumentSnapshot doc : snapshot) {
                         String bookingDate = doc.getString("bookingDate");
                         String endTime    = doc.getString("endTime");
                         String startTime  = doc.getString("startTime");
-                        String pitchId    = doc.getString("pitchId");
-                        String slotId     = doc.getString("slotId");
                         String bookingId  = doc.getId();
 
                         String compareTime = (endTime != null && !endTime.isEmpty()) ? endTime : startTime;
@@ -71,52 +90,21 @@ public class BookingExpiryWorker {
 
                         Log.d(TAG, "Tu dong tu choi don: " + bookingId
                                 + " [" + bookingDate + " " + compareTime + "]");
-                        expiredCount[0]++;
-
-                        Map<String, Object> bookingUpdate = new HashMap<>();
-                        bookingUpdate.put("bookingStatus", Constants.STATUS_REJECTED);
-                        bookingUpdate.put("matchStatus", Constants.MATCH_FINISHED);
-                        bookingUpdate.put("rejectReason", "Don dat san da qua gio va chua duoc duyet, he thong tu dong tu choi.");
-                        batch.update(
-                                db.collection(Constants.COL_BOOKINGS).document(bookingId),
-                                bookingUpdate
-                        );
-
-                        if (pitchId != null && slotId != null) {
-                            Map<String, Object> slotDetails = new HashMap<>();
-                            slotDetails.put("status", "available");
-                            slotDetails.put("bookingId", null);
-
-                            Map<String, Object> slotsMap = new HashMap<>();
-                            slotsMap.put(slotId, slotDetails);
-
-                            Map<String, Object> availUpdate = new HashMap<>();
-                            availUpdate.put("slots", slotsMap);
-
-                            batch.set(
-                                    db.collection(Constants.COL_PITCHES)
-                                      .document(pitchId)
-                                      .collection(Constants.SUB_AVAILABILITY)
-                                      .document(bookingDate),
-                                    availUpdate,
-                                    com.google.firebase.firestore.SetOptions.merge()
-                            );
-                        }
+                        operations.add(BookingRepository.getInstance().transitionBooking(bookingId,
+                                Constants.STATUS_REJECTED, "Đơn đã quá giờ và chưa được duyệt."));
                     }
 
-                    if (expiredCount[0] == 0) {
+                    if (operations.isEmpty()) {
                         Log.d(TAG, "Khong co don nao qua han.");
                         if (onComplete != null) onComplete.run();
                         return;
                     }
 
-                    batch.commit()
-                            .addOnSuccessListener(unused -> {
-                                Log.d(TAG, "Da tu dong tu choi " + expiredCount[0] + " don qua han.");
-                                if (onComplete != null) onComplete.run();
-                            })
-                            .addOnFailureListener(e -> {
-                                Log.e(TAG, "Loi khi commit batch reject: " + e.getMessage());
+                    Tasks.whenAllComplete(operations)
+                            .addOnCompleteListener(unused -> {
+                                for (Task<Void> operation : operations) {
+                                    if (!operation.isSuccessful()) Log.e(TAG, "Không thể từ chối đơn hết hạn", operation.getException());
+                                }
                                 if (onComplete != null) onComplete.run();
                             });
                 })

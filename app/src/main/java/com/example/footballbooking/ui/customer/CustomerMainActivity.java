@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.activity.OnBackPressedCallback;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
@@ -34,6 +35,7 @@ public class CustomerMainActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         setupNavigation();
+        setupBackNavigation();
     }
 
     private void setupNavigation() {
@@ -59,20 +61,27 @@ public class CustomerMainActivity extends AppCompatActivity {
      * Xử lý nút Back của hệ thống.
      * Nếu đang ở home tab → không back về Login, hỏi thoát app.
      */
-    @Override
-    public void onBackPressed() {
+    private void setupBackNavigation() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
         if (navController != null && navController.getCurrentDestination() != null
                 && navController.getCurrentDestination().getId() == R.id.nav_home) {
             // Đang ở Home → hỏi thoát app
-            new androidx.appcompat.app.AlertDialog.Builder(this)
+            new androidx.appcompat.app.AlertDialog.Builder(CustomerMainActivity.this)
                     .setTitle("Thoát ứng dụng")
                     .setMessage("Bạn có muốn thoát không?")
                     .setPositiveButton("Thoát", (d, w) -> finish())
                     .setNegativeButton("Ở lại", null)
                     .show();
+                    return;
         } else {
-            super.onBackPressed();
+                    if (navController == null || !navController.navigateUp()) {
+                        finish();
+                    }
         }
+            }
+        });
     }
 
     /** Chuyển tab trên BottomNavigationView một cách chuẩn xác */

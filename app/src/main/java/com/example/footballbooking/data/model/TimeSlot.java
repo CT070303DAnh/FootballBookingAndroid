@@ -45,13 +45,17 @@ public class TimeSlot {
     public String getEndTime() { return endTime; }
     public void setEndTime(String endTime) { this.endTime = endTime; }
 
+    @com.google.firebase.firestore.PropertyName("isPeakHour")
     public boolean isPeakHour() { return isPeakHour; }
+    @com.google.firebase.firestore.PropertyName("isPeakHour")
     public void setPeakHour(boolean peakHour) { isPeakHour = peakHour; }
 
     public double getSurcharge() { return surcharge; }
     public void setSurcharge(double surcharge) { this.surcharge = surcharge; }
 
+    @com.google.firebase.firestore.PropertyName("isActive")
     public boolean isActive() { return isActive; }
+    @com.google.firebase.firestore.PropertyName("isActive")
     public void setActive(boolean active) { isActive = active; }
 
     public String getStatus() { return status; }

@@ -120,24 +120,29 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void navigateByRole(String role) {
-        if (Constants.ROLE_ADMIN.equals(role)) {
+        RoleDestination destination = RoleDestination.fromRole(role);
+        if (destination == RoleDestination.ADMIN) {
             startActivity(new Intent(this,
                     com.example.footballbooking.ui.admin.AdminDashboardActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
             finish();
-        } else if (Constants.ROLE_OWNER.equals(role)) {
+        } else if (destination == RoleDestination.OWNER) {
             startActivity(new Intent(this,
                     com.example.footballbooking.ui.owner.OwnerDashboardActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
             finish();
-        } else if (Constants.ROLE_OWNER_PENDING.equals(role)) {
+        } else if (destination == RoleDestination.PENDING) {
             // Chủ sân chờ Admin duyệt — chưa vào được Dashboard
-            showError("Tài khoản chủ sân đang chờ Admin xét duyệt.\nVui lòng thử lại sau 24h. 🕐");
-        } else {
+            com.example.footballbooking.data.repository.AuthRepository.getInstance().logout();
+            showError("Tài khoản chủ sân đang chờ Admin xét duyệt. Vui lòng đăng nhập lại sau khi được duyệt.");
+        } else if (destination == RoleDestination.CUSTOMER) {
             // customer (mặc định)
             startActivity(new Intent(this, com.example.footballbooking.ui.customer.CustomerMainActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
             finish();
+        } else {
+            com.example.footballbooking.data.repository.AuthRepository.getInstance().logout();
+            showError("Quyền tài khoản không hợp lệ. Vui lòng liên hệ quản trị viên.");
         }
     }
 

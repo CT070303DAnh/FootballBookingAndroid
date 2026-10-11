@@ -26,6 +26,8 @@ public class SplashActivity extends AppCompatActivity {
 
     private ActivitySplashBinding binding;
     private AuthViewModel authViewModel;
+    private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private boolean navigated;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,19 +57,25 @@ public class SplashActivity extends AppCompatActivity {
 
                 case SUCCESS:
                     // Delay nhỏ để animation hoàn thành đẹp
-                    binding.getRoot().postDelayed(() -> {
+                    handler.postDelayed(() -> {
+                        if (isFinishing() || isDestroyed() || navigated) return;
                         if (resource.data == null) {
                             // Chưa đăng nhập
                             goToLogin();
                         } else {
                             // Đã đăng nhập → phân quyền
-                            String role = resource.data.getRole();
-                            if (Constants.ROLE_ADMIN.equals(role)) {
+                            RoleDestination destination = RoleDestination.fromRole(resource.data.getRole());
+                            if (destination == RoleDestination.ADMIN) {
                                 goToAdminDashboard();
-                            } else if (Constants.ROLE_OWNER.equals(role)) {
+                            } else if (destination == RoleDestination.OWNER) {
                                 goToOwnerDashboard();
-                            } else {
+                            } else if (destination == RoleDestination.CUSTOMER) {
                                 goToCustomerHome();
+                            } else {
+                                com.example.footballbooking.data.repository.AuthRepository.getInstance().logout();
+                                goToLogin(destination == RoleDestination.PENDING
+                                        ? "Tài khoản chủ sân đang chờ Admin xét duyệt. Vui lòng đăng nhập lại sau khi được duyệt."
+                                        : "Quyền tài khoản không hợp lệ. Vui lòng liên hệ quản trị viên.");
                             }
                         }
                     }, 600); // delay 600ms cho animation
@@ -75,23 +83,16 @@ public class SplashActivity extends AppCompatActivity {
 
                 case ERROR:
                     // Lỗi kết nối hoặc tài khoản bị chặn → vẫn về Login
-                    binding.getRoot().postDelayed(() -> {
-                        if (resource.message != null && resource.message.contains("đình chỉ")) {
-                            // Nếu lỗi do bị chặn, truyền message sang Login để hiển thị
-                            Intent intent = new Intent(SplashActivity.this, LoginActivity.class);
-                            intent.putExtra("ERROR_MESSAGE", resource.message);
-                            startActivity(intent);
-                            finish();
-                        } else {
-                            goToLogin();
-                        }
+                    handler.postDelayed(() -> {
+                        if (isFinishing() || isDestroyed() || navigated) return;
+                        goToLogin(resource.message);
                     }, 600);
                     break;
             }
         });
 
         // Trigger kiểm tra session (sau khi animation bắt đầu)
-        binding.getRoot().postDelayed(
+        handler.postDelayed(
                 () -> authViewModel.checkLoginSession(),
                 800 // chờ 800ms để logo animation chạy trước
         );
@@ -109,7 +110,7 @@ public class SplashActivity extends AppCompatActivity {
                 .start();
 
         // Progress bar: fade in sau 400ms
-        binding.progressSplash.postDelayed(() -> binding.progressSplash.animate()
+        handler.postDelayed(() -> binding.progressSplash.animate()
                 .alpha(1f)
                 .setDuration(300)
                 .start(),
@@ -117,26 +118,43 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void goToLogin() {
+        goToLogin(null);
+    }
+
+    private void goToLogin(String message) {
+        navigated = true;
         Intent intent = new Intent(this, LoginActivity.class);
+        if (message != null) intent.putExtra("ERROR_MESSAGE", message);
         startActivity(intent);
         finish(); // Đóng SplashActivity, không back lại được
     }
 
     private void goToCustomerHome() {
+        navigated = true;
         Intent intent = new Intent(this, CustomerMainActivity.class);
         startActivity(intent);
         finish();
     }
 
     private void goToAdminDashboard() {
+        navigated = true;
         Intent intent = new Intent(this, com.example.footballbooking.ui.admin.AdminDashboardActivity.class);
         startActivity(intent);
         finish();
     }
 
     private void goToOwnerDashboard() {
+        navigated = true;
         Intent intent = new Intent(this, com.example.footballbooking.ui.owner.OwnerDashboardActivity.class);
         startActivity(intent);
         finish();
+    }
+
+    @Override protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        binding.layoutLogo.animate().cancel();
+        binding.progressSplash.animate().cancel();
+        super.onDestroy();
+        binding = null;
     }
 }

@@ -94,6 +94,30 @@
                         android:textColor="@color/text_primary" android:textSize="13sp"
                         tools:text="0912 345 678" />
                 </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:layout_marginTop="10dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="🏦 Ngân hàng"
+                        android:textColor="@color/text_secondary" android:textSize="13sp" />
+                    <TextView android:id="@+id/tv_owner_profile_bank"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary" android:textSize="13sp"
+                        tools:text="MB Bank" />
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:layout_marginTop="10dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="💳 Số tài khoản"
+                        android:textColor="@color/text_secondary" android:textSize="13sp" />
+                    <TextView android:id="@+id/tv_owner_profile_bank_account"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary" android:textSize="13sp"
+                        tools:text="0912345678" />
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

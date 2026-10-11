@@ -37,8 +37,11 @@ public class TimeSlotAdapter extends ListAdapter<TimeSlot, TimeSlotAdapter.SlotV
                 }
                 @Override
                 public boolean areContentsTheSame(@NonNull TimeSlot o, @NonNull TimeSlot n) {
-                    return o.isActive() == n.isActive()
+                    return Objects.equals(o.getStartTime(), n.getStartTime())
+                            && Objects.equals(o.getEndTime(), n.getEndTime())
+                            && o.isActive() == n.isActive()
                             && o.isPeakHour() == n.isPeakHour()
+                            && o.getSurcharge() == n.getSurcharge()
                             && o.isAvailable() == n.isAvailable()
                             && Objects.equals(o.getStatus(), n.getStatus());
                 }
@@ -50,8 +53,20 @@ public class TimeSlotAdapter extends ListAdapter<TimeSlot, TimeSlotAdapter.SlotV
     }
 
     public void setSelectedSlotId(String slotId) {
+        String previousSlotId = this.selectedSlotId;
         this.selectedSlotId = slotId;
-        notifyDataSetChanged();
+        notifySlotChanged(previousSlotId);
+        notifySlotChanged(slotId);
+    }
+
+    private void notifySlotChanged(String slotId) {
+        if (slotId == null) return;
+        for (int i = 0; i < getItemCount(); i++) {
+            if (slotId.equals(getItem(i).getSlotId())) {
+                notifyItemChanged(i);
+                return;
+            }
+        }
     }
 
     @NonNull

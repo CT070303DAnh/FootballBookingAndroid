@@ -27,6 +27,8 @@ public class Pitch {
     private String ownerId;
     private String ownerName;       // Denormalized — tránh extra query
     private String ownerPhone;      // SĐT chủ sân hiển thị cho customer
+    private int bookingPolicyVersion;
+    private boolean useDefaultSlots;
 
     @ServerTimestamp
     private Timestamp createdAt;
@@ -84,6 +86,11 @@ public class Pitch {
 
     public String getOwnerPhone() { return ownerPhone; }
     public void setOwnerPhone(String ownerPhone) { this.ownerPhone = ownerPhone; }
+
+    public int getBookingPolicyVersion() { return bookingPolicyVersion; }
+    public void setBookingPolicyVersion(int version) { bookingPolicyVersion = version; }
+    public boolean getUseDefaultSlots() { return useDefaultSlots; }
+    public void setUseDefaultSlots(boolean value) { useDefaultSlots = value; }
 
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }

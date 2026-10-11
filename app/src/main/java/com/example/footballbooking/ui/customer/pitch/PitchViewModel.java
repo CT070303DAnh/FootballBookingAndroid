@@ -29,7 +29,7 @@ public class PitchViewModel extends ViewModel {
     private String currentSearchQuery = "";
 
     public PitchViewModel() {
-        pitchRepository = PitchRepository.getInstance();
+        pitchRepository = PitchRepository.createScoped();
         // Load danh sách sân ngay khi ViewModel tạo
         loadAllPitches();
     }

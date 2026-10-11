@@ -46,8 +46,9 @@ public class Booking {
     private double totalServicePrice;
     private double totalAmount;         // = basePrice + surcharge + totalServicePrice
     private String paymentStatus;       // "unpaid", "paid", "refunded"
-    private String paymentMethod;       // "vnpay", "cash"
-    private String vnpayTransactionId;  // null nếu thanh toán tiền mặt
+    private String paymentMethod;       // "payos", "cash", "pay_later"
+    private String vnpayTransactionId;  // legacy VNPay data
+    private String payosTransactionId;  // null nếu chưa thanh toán PayOS
 
     // --- Trạng thái ---
     private String bookingStatus;   // "pending","approved","rejected","cancelled"
@@ -128,6 +129,9 @@ public class Booking {
     public String getVnpayTransactionId() { return vnpayTransactionId; }
     public void setVnpayTransactionId(String vnpayTransactionId) { this.vnpayTransactionId = vnpayTransactionId; }
 
+    public String getPayosTransactionId() { return payosTransactionId; }
+    public void setPayosTransactionId(String payosTransactionId) { this.payosTransactionId = payosTransactionId; }
+
     public String getBookingStatus() { return bookingStatus; }
     public void setBookingStatus(String bookingStatus) { this.bookingStatus = bookingStatus; }
 
@@ -151,10 +155,12 @@ public class Booking {
 
     // --- Utility methods ---
     /** Kiểm tra đơn có thể hủy không (chỉ hủy khi chưa được duyệt) */
+    @com.google.firebase.firestore.Exclude
     public boolean isCancellable() {
         return "pending".equals(bookingStatus) || "approved".equals(bookingStatus);
     }
 
+    @com.google.firebase.firestore.Exclude
     public boolean isPaid() {
         return "paid".equals(paymentStatus);
     }

@@ -20,7 +20,7 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
             app:navigationIconTint="@color/white"
-            app:title="Thanh toán VNPay"
+            app:title="Thanh toán VietQR"
             app:titleTextColor="@color/white"
             android:background="@color/transparent" />
 
@@ -34,7 +34,7 @@
             app:trackColor="@color/divider" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- WebView chứa trang thanh toán VNPay -->
+    <!-- WebView chứa trang checkout PayOS -->
     <WebView
         android:id="@+id/web_view_payment"
         android:layout_width="match_parent"
@@ -76,7 +76,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Đơn đặt sân của bạn đang được Admin xem xét.\nBạn sẽ nhận thông báo sớm nhất."
+            android:text="Bạn có thể xem trạng thái đơn và thanh toán trong lịch sử đặt sân."
             android:textColor="@color/text_secondary"
             android:textSize="14sp"
             android:gravity="center"
@@ -89,6 +89,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="40dp"
             android:text="Về trang chủ" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_payment_resume"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Tiếp tục giao dịch đang mở"
+            android:visibility="gone" />
     </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

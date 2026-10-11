@@ -101,6 +101,8 @@ public class FirestoreSeeder {
                 userMap.put("avatarUrl", "");
 
                 if (Constants.ROLE_OWNER.equals(u[2])) {
+                    userMap.put("bankName", Constants.DEFAULT_OWNER_BANK_NAME);
+                    userMap.put("bankAccountNumber", Constants.normalizeOwnerBankAccount(u[3]));
                     ownerList.add(userMap);
                 }
 
@@ -248,6 +250,9 @@ public class FirestoreSeeder {
                         pitch.put("ownerId", owner.get("uid"));
                         pitch.put("ownerName", owner.get("displayName"));
                         pitch.put("ownerPhone", owner.get("phoneNumber"));
+                        // Versioned fixed-slot policy used by the client, backend and Rules.
+                        pitch.put("bookingPolicyVersion", 2);
+                        pitch.put("useDefaultSlots", false);
                         pitch.put("createdAt", com.google.firebase.firestore.FieldValue.serverTimestamp());
                         pitch.put("updatedAt", com.google.firebase.firestore.FieldValue.serverTimestamp());
 
@@ -299,7 +304,7 @@ public class FirestoreSeeder {
                 { "slot_6", "17:00", "18:30", "30000" },
                 { "slot_7", "18:30", "20:00", "50000" },
                 { "slot_8", "20:00", "21:30", "50000" },
-                { "slot_9", "21:30", "23:00", "20000" },
+                { "slot_9", "21:30", "23:00", "0" },
         };
 
         for (int pitchIdx = 1; pitchIdx <= 30; pitchIdx++) {
@@ -310,6 +315,7 @@ public class FirestoreSeeder {
                 slotData.put("startTime", slot[1]);
                 slotData.put("endTime", slot[2]);
                 slotData.put("surcharge", Double.parseDouble(slot[3]));
+                slotData.put("isPeakHour", pitchIsPeakSlot(slot[0]));
                 slotData.put("isActive", true);
                 slotData.put("label", slot[1] + " - " + slot[2]);
 
@@ -321,6 +327,10 @@ public class FirestoreSeeder {
             }
         }
         onComplete.run();
+    }
+
+    private static boolean pitchIsPeakSlot(String slotId) {
+        return "slot_6".equals(slotId) || "slot_7".equals(slotId) || "slot_8".equals(slotId);
     }
 
     // ============================================================
@@ -385,7 +395,7 @@ public class FirestoreSeeder {
                                                     com.google.firebase.firestore.FieldValue.serverTimestamp());
                                             db.collection(Constants.COL_BOOKINGS).document(bId1).set(b1);
 
-                                            // Booking 2: Approved (VNPay)
+                                            // Booking 2: Approved (PayOS VietQR)
                                             Map<String, Object> b2 = new HashMap<>(b1);
                                             String bId2 = "booking_2_" + System.currentTimeMillis();
                                             cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
@@ -393,7 +403,7 @@ public class FirestoreSeeder {
                                                     java.util.Locale.getDefault()).format(cal.getTime());
                                             b2.put("bookingId", bId2);
                                             b2.put("bookingDate", nextTomorrow);
-                                            b2.put("paymentMethod", Constants.METHOD_VNPAY);
+                                            b2.put("paymentMethod", Constants.METHOD_PAYOS);
                                             b2.put("paymentStatus", Constants.PAYMENT_PAID);
                                             b2.put("bookingStatus", Constants.STATUS_APPROVED);
                                             db.collection(Constants.COL_BOOKINGS).document(bId2).set(b2);

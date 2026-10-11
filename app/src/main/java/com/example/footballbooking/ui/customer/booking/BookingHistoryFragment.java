@@ -128,13 +128,14 @@ public class BookingHistoryFragment extends Fragment
                     .setMessage("• Sân: " + booking.getPitchName() + "\n"
                             + "• Thời gian: " + booking.getBookingDate() + " (" + booking.getStartTime() + " - " + booking.getEndTime() + ")\n"
                             + "• Tổng tiền: " + nf.format((long) booking.getTotalAmount()) + "đ\n"
-                            + "• Trạng thái: Chưa thanh toán (Thanh toán sau)\n\n"
-                            + "Bạn có muốn thanh toán qua VNPay ngay bây giờ không?")
-                    .setPositiveButton("Thanh toán ngay (VNPay)", (dialog, which) -> {
+                            + "• Trạng thái: Chưa thanh toán\n"
+                            + "• Phương thức: " + (Constants.METHOD_CASH.equals(booking.getPaymentMethod())
+                                ? "Tiền mặt tại sân" : isOnlinePayment(booking.getPaymentMethod()) ? "PayOS - VietQR" : "Thanh toán sau") + "\n\n"
+                            + "Bạn có muốn thanh toán qua VietQR ngay bây giờ không?")
+                    .setPositiveButton("Thanh toán ngay (VietQR)", (dialog, which) -> {
                         android.content.Intent intent = new android.content.Intent(requireContext(),
                                 com.example.footballbooking.ui.customer.payment.PaymentActivity.class);
                         intent.putExtra(Constants.EXTRA_BOOKING_ID, booking.getBookingId());
-                        intent.putExtra("extra_amount", (long) booking.getTotalAmount());
                         startActivity(intent);
                     })
                     .setNegativeButton("Đóng", null)
@@ -147,10 +148,25 @@ public class BookingHistoryFragment extends Fragment
                             + "• Thời gian: " + booking.getBookingDate() + " (" + booking.getStartTime() + " - " + booking.getEndTime() + ")\n"
                             + "• Trạng thái: " + booking.getBookingStatus() + "\n"
                             + "• Tổng tiền: " + nf.format((long) booking.getTotalAmount()) + "đ\n"
-                            + "• Thanh toán: " + (Constants.PAYMENT_PAID.equals(booking.getPaymentStatus()) ? "Đã thanh toán" : "Chưa thanh toán"))
+                            + "• Thanh toán: " + (Constants.PAYMENT_PAID.equals(booking.getPaymentStatus()) ? "Đã thanh toán" : "Chưa thanh toán")
+                            + (Constants.PAYMENT_PAID.equals(booking.getPaymentStatus())
+                               && (Constants.STATUS_CANCELLED.equals(booking.getBookingStatus()) || Constants.STATUS_REJECTED.equals(booking.getBookingStatus()))
+                               ? "\nĐơn đã hủy/từ chối nhưng có thanh toán. Vui lòng liên hệ chủ sân để đối soát/hoàn tiền." : ""))
+                    .setNeutralButton(isOnlinePayment(booking.getPaymentMethod()) ? "Kiểm tra thanh toán" : null,
+                            (dialog, which) -> {
+                                android.content.Intent intent = new android.content.Intent(requireContext(),
+                                        com.example.footballbooking.ui.customer.payment.PaymentActivity.class);
+                                intent.putExtra(Constants.EXTRA_BOOKING_ID, booking.getBookingId());
+                                startActivity(intent);
+                            })
                     .setPositiveButton("Đóng", null)
                     .show();
         }
+    }
+
+    private boolean isOnlinePayment(String paymentMethod) {
+        return Constants.METHOD_PAYOS.equals(paymentMethod)
+                || Constants.METHOD_VNPAY.equals(paymentMethod);
     }
 
     private void showEmpty(boolean empty) {

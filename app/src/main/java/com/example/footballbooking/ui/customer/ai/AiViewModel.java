@@ -50,14 +50,23 @@ public class AiViewModel extends ViewModel {
     // Cache trạng thái dữ liệu đã nhận
     private List<Pitch>   cachedPitches;
     private WeatherData   cachedWeather;
+    private boolean weatherReady;
     private Map<String, Integer> cachedHistoryMap; // pitchId → count
 
     private Location userLocation;
+    private androidx.lifecycle.Observer<Resource<List<Pitch>>> pitchesObserver;
+    private androidx.lifecycle.Observer<Resource<WeatherData>> weatherObserver;
+    private androidx.lifecycle.Observer<Resource<List<Booking>>> historyObserver;
+    private boolean cleared;
+    private long scoreGeneration;
+    private final android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final java.util.concurrent.ExecutorService scoreExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private java.util.concurrent.Future<?> scoreTask;
 
     public AiViewModel() {
-        pitchRepository   = PitchRepository.getInstance();
-        weatherRepository = WeatherRepository.getInstance();
-        bookingRepository = BookingRepository.getInstance();
+        pitchRepository   = PitchRepository.createScoped();
+        weatherRepository = WeatherRepository.createScoped();
+        bookingRepository = BookingRepository.createScoped();
 
         observeRawData();
     }
@@ -83,6 +92,12 @@ public class AiViewModel extends ViewModel {
      * Gọi từ Fragment sau khi có GPS permission.
      */
     public void loadAiSuggestions(Location location) {
+        if (cleared) return;
+        scoreGeneration++;
+        cachedPitches = null;
+        cachedWeather = null;
+        weatherReady = false;
+        cachedHistoryMap = null;
         this.userLocation = location;
         aiSuggestions.setValue(Resource.loading(null));
 
@@ -132,29 +147,36 @@ public class AiViewModel extends ViewModel {
     private void observeRawData() {
 
         // Observe pitches
-        allPitches.observeForever(resource -> {
+        pitchesObserver = resource -> {
             if (resource != null && resource.isSuccess()) {
                 cachedPitches = resource.data;
                 tryCalculateScore();
             } else if (resource != null && resource.isError()) {
-                aiSuggestions.postValue(Resource.error("Lỗi tải sân: " + resource.message, null));
+                cachedPitches = null;
+                scoreGeneration++;
+                if (scoreTask != null) scoreTask.cancel(true);
+                aiSuggestions.setValue(Resource.error("Lỗi tải sân: " + resource.message, null));
             }
-        });
+        };
+        allPitches.observeForever(pitchesObserver);
 
         // Observe weather
-        weatherData.observeForever(resource -> {
+        weatherObserver = resource -> {
             if (resource != null && resource.isSuccess()) {
+                weatherReady = true;
                 cachedWeather = resource.data;
                 tryCalculateScore();
             } else if (resource != null && resource.isError()) {
                 // Weather lỗi → vẫn tính với weather = null (score = 0.5)
+                weatherReady = true;
                 cachedWeather = null;
                 tryCalculateScore();
             }
-        });
+        };
+        weatherData.observeForever(weatherObserver);
 
         // Observe booking history
-        userHistory.observeForever(resource -> {
+        historyObserver = resource -> {
             if (resource != null && resource.isSuccess()) {
                 cachedHistoryMap = buildHistoryMap(resource.data);
                 tryCalculateScore();
@@ -162,7 +184,8 @@ public class AiViewModel extends ViewModel {
                 cachedHistoryMap = new HashMap<>();
                 tryCalculateScore();
             }
-        });
+        };
+        userHistory.observeForever(historyObserver);
     }
 
     /**
@@ -170,25 +193,36 @@ public class AiViewModel extends ViewModel {
      * Weather và history có thể null (fallback).
      */
     private void tryCalculateScore() {
+        if (cleared) return;
         // Chờ tất cả data sẵn sàng (pitches bắt buộc, rest optional)
         if (cachedPitches == null) return;
-        if (cachedHistoryMap == null) return;
+        if (cachedHistoryMap == null || !weatherReady) return;
         // cachedWeather có thể null → OK
 
         // Chạy AI scoring trên background thread
-        new Thread(() -> {
+        final long generation = ++scoreGeneration;
+        final List<Pitch> pitches = new ArrayList<>(cachedPitches);
+        final Map<String, Integer> history = new HashMap<>(cachedHistoryMap);
+        final Location location = userLocation == null ? null : new Location(userLocation);
+        final WeatherData weather = cachedWeather;
+        if (scoreTask != null) scoreTask.cancel(true);
+        scoreTask = scoreExecutor.submit(() -> {
             List<AiScoringEngine.ScoredPitch> scored = AiScoringEngine.rankPitches(
-                    cachedPitches,
-                    userLocation,
-                    cachedWeather,
-                    cachedHistoryMap
+                    pitches,
+                    location,
+                    weather,
+                    history
             );
             // Chỉ lấy top 10 gợi ý
             List<AiScoringEngine.ScoredPitch> top10 =
                     scored.size() > 10 ? scored.subList(0, 10) : scored;
 
-            aiSuggestions.postValue(Resource.success(new ArrayList<>(top10)));
-        }).start();
+            mainHandler.post(() -> {
+                if (!cleared && generation == scoreGeneration) {
+                    aiSuggestions.setValue(Resource.success(new ArrayList<>(top10)));
+                }
+            });
+        });
     }
 
     /** Chuyển List<Booking> → Map<pitchId, bookingCount> */
@@ -205,6 +239,15 @@ public class AiViewModel extends ViewModel {
 
     @Override
     protected void onCleared() {
+        cleared = true;
+        weatherRepository.cancelPending();
+        scoreGeneration++;
+        allPitches.removeObserver(pitchesObserver);
+        weatherData.removeObserver(weatherObserver);
+        userHistory.removeObserver(historyObserver);
+        if (scoreTask != null) scoreTask.cancel(true);
+        scoreExecutor.shutdownNow();
+        mainHandler.removeCallbacksAndMessages(null);
         super.onCleared();
         pitchRepository.detachPitchListListener();
         bookingRepository.detachBookingListListener();

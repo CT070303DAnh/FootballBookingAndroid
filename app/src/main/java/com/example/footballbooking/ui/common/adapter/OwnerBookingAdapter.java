@@ -18,6 +18,7 @@ import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Objects;
 
 public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapter.OwnerBookingVH> {
 
@@ -37,8 +38,16 @@ public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapte
         }
         @Override
         public boolean areContentsTheSame(@NonNull Booking o, @NonNull Booking n) {
-            return o.getBookingStatus().equals(n.getBookingStatus())
-                    && o.getMatchStatus().equals(n.getMatchStatus());
+            return Objects.equals(o.getCustomerName(), n.getCustomerName())
+                    && Objects.equals(o.getCustomerPhone(), n.getCustomerPhone())
+                    && Objects.equals(o.getPitchName(), n.getPitchName())
+                    && Objects.equals(o.getBookingDate(), n.getBookingDate())
+                    && Objects.equals(o.getStartTime(), n.getStartTime())
+                    && Objects.equals(o.getEndTime(), n.getEndTime())
+                    && o.getTotalAmount() == n.getTotalAmount()
+                    && Objects.equals(o.getNote(), n.getNote())
+                    && Objects.equals(o.getBookingStatus(), n.getBookingStatus())
+                    && Objects.equals(o.getMatchStatus(), n.getMatchStatus());
         }
     };
 

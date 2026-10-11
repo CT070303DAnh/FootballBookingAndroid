@@ -19,6 +19,7 @@ import com.example.footballbooking.utils.Constants;
 
 import java.text.NumberFormat;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * PitchAdapter — RecyclerView Adapter dùng ListAdapter + DiffUtil.
@@ -51,9 +52,17 @@ public class PitchAdapter extends ListAdapter<Pitch, PitchAdapter.PitchViewHolde
                 @Override
                 public boolean areContentsTheSame(@NonNull Pitch oldItem, @NonNull Pitch newItem) {
                     // So sánh nội dung — có thay đổi gì không?
-                    return oldItem.getRating() == newItem.getRating() &&
-                           oldItem.getStatus().equals(newItem.getStatus()) &&
-                           oldItem.getBasePrice() == newItem.getBasePrice();
+                    return Objects.equals(oldItem.getName(), newItem.getName())
+                            && Objects.equals(oldItem.getDescription(), newItem.getDescription())
+                            && Objects.equals(oldItem.getType(), newItem.getType())
+                            && Objects.equals(oldItem.getStatus(), newItem.getStatus())
+                            && Objects.equals(oldItem.getAddress(), newItem.getAddress())
+                            && Objects.equals(oldItem.getLocation(), newItem.getLocation())
+                            && Objects.equals(oldItem.getImageUrls(), newItem.getImageUrls())
+                            && Objects.equals(oldItem.getAmenities(), newItem.getAmenities())
+                            && oldItem.getBasePrice() == newItem.getBasePrice()
+                            && oldItem.getRating() == newItem.getRating()
+                            && oldItem.getTotalReviews() == newItem.getTotalReviews();
                 }
             };
 

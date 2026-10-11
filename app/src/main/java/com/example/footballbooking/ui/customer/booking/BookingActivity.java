@@ -43,6 +43,7 @@ public class BookingActivity extends AppCompatActivity
     private BookingViewModel bookingViewModel;
     private TimeSlotAdapter timeSlotAdapter;
     private ServiceSelectAdapter serviceAdapter; // Inner class bên dưới
+    private boolean lockedSelection;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,11 +54,20 @@ public class BookingActivity extends AppCompatActivity
         String pitchId = getIntent().getStringExtra(Constants.EXTRA_PITCH_ID);
         if (pitchId == null) { finish(); return; }
 
+        String preselectedDate = getIntent().getStringExtra(Constants.EXTRA_BOOKING_DATE);
+        String preselectedSlotId = getIntent().getStringExtra(Constants.EXTRA_SLOT_ID);
+        lockedSelection = preselectedDate != null && !preselectedDate.trim().isEmpty()
+                && preselectedSlotId != null && !preselectedSlotId.trim().isEmpty();
+
         bookingViewModel = new ViewModelProvider(this).get(BookingViewModel.class);
+        bookingViewModel.preselectDateAndSlot(
+                preselectedDate,
+                preselectedSlotId);
 
         setupToolbar();
         setupRecyclerViews();
         setupCalendar();
+        applySelectionMode();
         setupPaymentMethodSelection();
         setupConfirmButton();
         loadInitialData(pitchId);
@@ -65,19 +75,34 @@ public class BookingActivity extends AppCompatActivity
     }
 
     private void setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        binding.toolbar.setNavigationOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
     }
 
     private void setupPaymentMethodSelection() {
         binding.rgPaymentMethod.setOnCheckedChangeListener((group, checkedId) -> {
             if (checkedId == binding.rbVnpay.getId()) {
-                binding.btnConfirmBooking.setText("Xác nhận và Thanh toán (VNPay) 💳");
+                binding.btnConfirmBooking.setText("Xác nhận và Thanh toán (VietQR) 💳");
             } else if (checkedId == binding.rbCash.getId()) {
                 binding.btnConfirmBooking.setText("Xác nhận đặt sân (Tiền mặt) 💵");
             } else if (checkedId == binding.rbPayLater.getId()) {
                 binding.btnConfirmBooking.setText("Xác nhận giữ chỗ (Thanh toán sau) ⏳");
             }
         });
+    }
+
+    /**
+     * When the user comes from "Tìm sân theo giờ", date and slot are already
+     * confirmed by the availability screen. Keep the booking screen focused
+     * on services, notes and payment instead of asking for the same input again.
+     */
+    private void applySelectionMode() {
+        if (!lockedSelection) return;
+
+        binding.layoutBookingDateSelection.setVisibility(View.GONE);
+        binding.layoutBookingSlotSelection.setVisibility(View.GONE);
+        binding.tvBookingServicesTitle.setText("1. Dịch vụ kèm theo (tuỳ chọn)");
+        binding.tvBookingNoteTitle.setText("2. Ghi chú");
+        binding.tvBookingPaymentTitle.setText("3. Phương thức thanh toán");
     }
 
     private void setupRecyclerViews() {
@@ -87,7 +112,7 @@ public class BookingActivity extends AppCompatActivity
         binding.rvTimeSlots.setAdapter(timeSlotAdapter);
 
         // Services: Linear list
-        serviceAdapter = new ServiceSelectAdapter((service, isChecked) -> {
+        serviceAdapter = new ServiceSelectAdapter(bookingViewModel::isServiceSelected, (service, isChecked) -> {
             bookingViewModel.toggleService(service, isChecked);
             updatePriceUI();
         });
@@ -97,12 +122,18 @@ public class BookingActivity extends AppCompatActivity
 
     private void setupCalendar() {
         binding.calendarView.setMinDate(System.currentTimeMillis() - 1000);
+        try {
+            java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+            binding.calendarView.setDate(format.parse(bookingViewModel.getSelectedDate()).getTime());
+        } catch (java.text.ParseException ignored) { }
         binding.calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
             // CalendarView trả về month 0-indexed
-            java.util.Calendar cal = java.util.Calendar.getInstance();
+            java.util.Calendar cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+            cal.clear();
             cal.set(year, month, dayOfMonth);
             bookingViewModel.onDateSelected(cal.getTimeInMillis());
             timeSlotAdapter.setSelectedSlotId(null);
+            serviceAdapter.notifyDataSetChanged();
             updatePriceUI();
         });
     }
@@ -110,62 +141,62 @@ public class BookingActivity extends AppCompatActivity
     private void setupConfirmButton() {
         binding.btnConfirmBooking.setOnClickListener(v -> {
             if (bookingViewModel.getSelectedSlot() == null) {
-                Snackbar.make(v, "Vui lòng chọn một khung giờ còn trống!", Snackbar.LENGTH_SHORT).show();
+                showBookingValidationError("Vui lòng chọn một khung giờ còn trống!");
                 return;
             }
             if (!bookingViewModel.canConfirmBooking()) {
-                Snackbar.make(v, "Vui lòng kiểm tra lại thông tin đặt sân!", Snackbar.LENGTH_SHORT).show();
+                showBookingValidationError(bookingViewModel.getConfirmationError());
                 return;
             }
             showConfirmDialog();
         });
     }
 
+    private void showBookingValidationError(String message) {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Chưa thể đặt sân")
+                .setMessage(message)
+                .setPositiveButton("Đã hiểu", null)
+                .show();
+    }
+
     private void showConfirmDialog() {
         TimeSlot slot = bookingViewModel.getSelectedSlot();
         Pitch pitch = bookingViewModel.getSelectedPitch();
         if (slot == null || pitch == null) return;
+        final String confirmedDate = bookingViewModel.getSelectedDate();
+        final String confirmedSlot = slot.getSlotId();
+        final double confirmedAmount = bookingViewModel.getTotalAmount();
 
-        final String[] paymentMethods = {
-                "💳 Thanh toán ngay qua VNPay",
-                "💵 Thanh toán tại sân (Tiền mặt)",
-                "⏳ Thanh toán sau (Giữ chỗ trước)"
-        };
-
-        int initialIndex = 0;
-        if (binding.rbCash.isChecked()) {
-            initialIndex = 1;
-        } else if (binding.rbPayLater.isChecked()) {
-            initialIndex = 2;
-        }
-
-        final int[] selectedMethodIndex = {initialIndex};
+        final String paymentMethod = binding.rbCash.isChecked() ? Constants.METHOD_CASH
+                : binding.rbPayLater.isChecked() ? Constants.METHOD_PAY_LATER : Constants.METHOD_PAYOS;
+        final String paymentLabel = binding.rbCash.isChecked() ? "Tiền mặt tại sân"
+                : binding.rbPayLater.isChecked() ? "Thanh toán sau" : "PayOS - VietQR";
 
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("Xác nhận đặt sân")
                 .setMessage("• Sân: " + pitch.getName() + "\n"
                         + "• Ngày: " + bookingViewModel.getSelectedDate() + "\n"
                         + "• Khung giờ: " + slot.getStartTime() + " - " + slot.getEndTime() + "\n"
-                        + "• Tổng tiền: " + bookingViewModel.getFormattedTotal())
-                .setSingleChoiceItems(paymentMethods, selectedMethodIndex[0], (dialog, which) -> {
-                    selectedMethodIndex[0] = which;
-                    if (which == 0) binding.rbVnpay.setChecked(true);
-                    else if (which == 1) binding.rbCash.setChecked(true);
-                    else if (which == 2) binding.rbPayLater.setChecked(true);
-                })
+                        + "• Tổng tiền: " + bookingViewModel.getFormattedTotal()
+                        + "\n• Thanh toán: " + paymentLabel
+                        + (Constants.METHOD_PAYOS.equals(paymentMethod)
+                           ? "\nBạn có tối đa 15 phút từ lúc tạo đơn để thanh toán online. Quá hạn, chỗ có thể được mở lại." : ""))
                 .setPositiveButton("Xác nhận", (dialog, which) -> {
+                    TimeSlot current = bookingViewModel.getSelectedSlot();
+                    if (!bookingViewModel.canConfirmBooking() || current == null
+                            || !confirmedSlot.equals(current.getSlotId())
+                            || !confirmedDate.equals(bookingViewModel.getSelectedDate())
+                            || Double.compare(confirmedAmount, bookingViewModel.getTotalAmount()) != 0) {
+                        String error = bookingViewModel.getConfirmationError();
+                        showBookingValidationError(error != null ? error
+                                : "Thông tin đã thay đổi. Vui lòng kiểm tra và xác nhận lại.");
+                        return;
+                    }
                     binding.btnConfirmBooking.setEnabled(false);
                     String note = binding.etNote.getText() != null
                             ? binding.etNote.getText().toString() : "";
-                    String method;
-                    if (selectedMethodIndex[0] == 0) {
-                        method = Constants.METHOD_VNPAY;
-                    } else if (selectedMethodIndex[0] == 1) {
-                        method = Constants.METHOD_CASH;
-                    } else {
-                        method = Constants.METHOD_PAY_LATER;
-                    }
-                    bookingViewModel.confirmBooking(note, method);
+                    bookingViewModel.confirmBooking(note, paymentMethod);
                 })
                 .setNegativeButton("Hủy", null)
                 .show();
@@ -231,19 +262,26 @@ public class BookingActivity extends AppCompatActivity
             if (resource.isSuccess() && resource.data != null) {
                 List<TimeSlot> slots = resource.data;
                 timeSlotAdapter.submitList(slots);
+                binding.tvNoSlots.setText("Không có khung giờ phù hợp");
                 binding.tvNoSlots.setVisibility(slots.isEmpty() ? View.VISIBLE : View.GONE);
             } else if (resource.isError()) {
+                timeSlotAdapter.submitList(java.util.Collections.emptyList());
                 binding.tvNoSlots.setVisibility(View.VISIBLE);
                 binding.tvNoSlots.setText("Lỗi tải khung giờ: " + resource.message);
                 Snackbar.make(binding.getRoot(),
                         "Lỗi tải khung giờ: " + resource.message, Snackbar.LENGTH_SHORT).show();
             }
+            if (resource.isLoading()) timeSlotAdapter.submitList(java.util.Collections.emptyList());
+            TimeSlot selected = bookingViewModel.getSelectedSlot();
+            timeSlotAdapter.setSelectedSlotId(selected == null ? null : selected.getSlotId());
+            updatePriceUI();
         });
 
         // Dịch vụ kèm theo
         bookingViewModel.getServicesLiveData().observe(this, resource -> {
             if (resource != null && resource.isSuccess() && resource.data != null) {
                 serviceAdapter.setServices(resource.data);
+                updatePriceUI();
             }
         });
 
@@ -254,11 +292,11 @@ public class BookingActivity extends AppCompatActivity
 
             if (resource.isSuccess() && resource.data != null) {
                 com.example.footballbooking.data.model.Booking createdBooking = resource.data;
-                if (Constants.METHOD_VNPAY.equals(createdBooking.getPaymentMethod())) {
+                if (Constants.METHOD_PAYOS.equals(createdBooking.getPaymentMethod())
+                        || Constants.METHOD_VNPAY.equals(createdBooking.getPaymentMethod())) {
                     android.content.Intent intent = new android.content.Intent(this,
                             com.example.footballbooking.ui.customer.payment.PaymentActivity.class);
                     intent.putExtra(Constants.EXTRA_BOOKING_ID, createdBooking.getBookingId());
-                    intent.putExtra("extra_amount", (long) createdBooking.getTotalAmount());
                     startActivity(intent);
                     finish();
                 } else if (Constants.METHOD_PAY_LATER.equals(createdBooking.getPaymentMethod())) {
@@ -353,8 +391,11 @@ public class BookingActivity extends AppCompatActivity
 
         private List<Service> services;
         private final OnServiceToggleListener listener;
+        private final java.util.function.Predicate<Service> isSelected;
 
-        ServiceSelectAdapter(OnServiceToggleListener listener) {
+        ServiceSelectAdapter(java.util.function.Predicate<Service> isSelected,
+                             OnServiceToggleListener listener) {
+            this.isSelected = isSelected;
             this.listener = listener;
         }
 
@@ -375,6 +416,7 @@ public class BookingActivity extends AppCompatActivity
         public void onBindViewHolder(@androidx.annotation.NonNull VH h, int pos) {
             if (services == null) return;
             Service s = services.get(pos);
+            h.b.cbService.setChecked(isSelected.test(s));
             h.b.tvServiceName.setText(s.getName());
             h.b.tvServiceDesc.setText(s.getDescription() + " / " + s.getUnit());
             h.b.tvServicePrice.setText("+" +
@@ -383,8 +425,8 @@ public class BookingActivity extends AppCompatActivity
 
             // Card toggle
             h.b.cardService.setOnClickListener(v -> {
-                h.b.cbService.toggle();
-                listener.onToggle(s, h.b.cbService.isChecked());
+                listener.onToggle(s, !isSelected.test(s));
+                h.b.cbService.setChecked(isSelected.test(s));
             });
         }
 

@@ -47,6 +47,7 @@
 | 🔐 Đăng nhập / Đăng ký | Firebase Authentication (Email/Password) |
 | 🏠 Trang chủ | Danh sách sân, tìm kiếm, skeleton loading |
 | 🤖 AI Gợi ý | Weighted Scoring: 30% khoảng cách + 25% thời tiết + 25% đánh giá + 20% lịch sử |
+| 🕒 Tìm sân theo giờ | Chọn ngày + slot cố định 90 phút, chỉ hiển thị sân còn trống |
 | 📋 Chi tiết sân | Ảnh, thông tin, đánh giá, tiện ích, bản đồ |
 | 📅 Đặt sân | Chọn ngày → slot → dịch vụ → xác nhận |
 | 💳 Thanh toán | VNPay Sandbox (WebView + HMAC-SHA512) |
@@ -266,9 +267,14 @@ GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 # OpenWeatherMap (https://openweathermap.org/api)
 OPENWEATHER_API_KEY=your_openweather_api_key
 
-# VNPay Sandbox (https://sandbox.vnpayment.vn/merchantv2)
-VNPAY_HASH_SECRET=your_vnpay_hash_secret
+# Backend thanh toán (bản release bắt buộc HTTPS)
+BACKEND_BASE_URL=https://your-api.example.com/
+PAYMENT_BASE_URL=https://your-api.example.com/
 ```
+
+VNPay TMN code và hash secret chỉ cấu hình trên backend, không đưa vào Android.
+Xem [cấu hình thanh toán C3](docs/FIX_C3_PAYMENT_VERIFICATION.md) và
+[chuẩn bị khóa lịch C2](docs/FIX_C2_BOOKING_INTEGRITY.md) trước khi deploy.
 
 ### Bước 4: Deploy Firestore Rules
 
@@ -303,6 +309,10 @@ File → Sync Project with Gradle Files
 # Run
 Shift + F10 (hoặc ▶️ Run)
 ```
+
+### Backend thanh toán
+
+Backend FastAPI chỉ phục vụ xác thực Firebase và thanh toán VNPay. Xem hướng dẫn chạy tại [`backend/README.md`](backend/README.md). Android emulator mặc định gọi `http://10.0.2.2:8000/`; AI gợi ý sân chạy trực tiếp trong ứng dụng và không cần LM Studio.
 
 ---
 
@@ -348,7 +358,10 @@ POST https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
     ...
 ```
 
-Callback: `vnpay://payment_result?vnp_ResponseCode=00`
+Ứng dụng yêu cầu backend tạo URL qua `POST /payments/vnpay/sessions` với Firebase ID token.
+Backend lấy số tiền từ đơn và ký URL; IPN tại `GET /payments/vnpay/ipn` xác minh thanh toán.
+Return URL HTTPS chuyển về `vnpay://payment_result?payment_ref=...`; ứng dụng chỉ hiển thị
+thành công sau khi API trạng thái xác nhận `paid`. Callback không ghi Firestore.
 
 ### Firestore Collections
 

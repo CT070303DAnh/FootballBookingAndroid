@@ -19,6 +19,7 @@ import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * BookingAdapter — Hiển thị lịch sử đặt sân với màu sắc theo trạng thái.
@@ -43,9 +44,17 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
                 }
                 @Override
                 public boolean areContentsTheSame(@NonNull Booking o, @NonNull Booking n) {
-                    return o.getBookingStatus().equals(n.getBookingStatus())
-                            && o.getMatchStatus().equals(n.getMatchStatus())
-                            && o.getPaymentStatus().equals(n.getPaymentStatus());
+                    return Objects.equals(o.getCustomerName(), n.getCustomerName())
+                            && Objects.equals(o.getPitchName(), n.getPitchName())
+                            && Objects.equals(o.getPitchAddress(), n.getPitchAddress())
+                            && Objects.equals(o.getBookingDate(), n.getBookingDate())
+                            && Objects.equals(o.getStartTime(), n.getStartTime())
+                            && Objects.equals(o.getEndTime(), n.getEndTime())
+                            && o.getTotalAmount() == n.getTotalAmount()
+                            && Objects.equals(o.getBookingStatus(), n.getBookingStatus())
+                            && Objects.equals(o.getMatchStatus(), n.getMatchStatus())
+                            && Objects.equals(o.getPaymentStatus(), n.getPaymentStatus())
+                            && Objects.equals(o.getNote(), n.getNote());
                 }
             };
 

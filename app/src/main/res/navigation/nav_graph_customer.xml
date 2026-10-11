@@ -23,6 +23,11 @@
         android:label="AI Gợi ý" />
 
     <fragment
+        android:id="@+id/nav_availability"
+        android:name="com.example.footballbooking.ui.customer.availability.AvailabilityFragment"
+        android:label="Tìm sân theo giờ" />
+
+    <fragment
         android:id="@+id/nav_history"
         android:name="com.example.footballbooking.ui.customer.booking.BookingHistoryFragment"
         android:label="Lịch sử đặt sân" />

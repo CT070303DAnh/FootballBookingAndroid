@@ -101,12 +101,16 @@ public class PitchMapFragment extends Fragment implements OnMapReadyCallback {
         SupportMapFragment mapFragment = (SupportMapFragment)
                 getChildFragmentManager().findFragmentById(R.id.map);
         if (mapFragment != null) {
-            mapFragment.getMapAsync(this);
+            final com.example.footballbooking.databinding.FragmentPitchMapBinding currentBinding = binding;
+            mapFragment.getMapAsync(map -> {
+                if (binding == currentBinding && currentBinding != null) onMapReady(map);
+            });
         }
     }
 
     @Override
     public void onMapReady(@NonNull GoogleMap map) {
+        if (binding == null) return;
         this.googleMap = map;
 
         // Cấu hình giao diện bản đồ
@@ -158,13 +162,15 @@ public class PitchMapFragment extends Fragment implements OnMapReadyCallback {
     }
 
     private void enableMyLocation() {
-        if (googleMap == null || !hasLocationPermission()) return;
+        if (binding == null || !isAdded() || googleMap == null || !hasLocationPermission()) return;
+        final com.example.footballbooking.databinding.FragmentPitchMapBinding currentBinding = binding;
+        final GoogleMap currentMap = googleMap;
 
         try {
             googleMap.setMyLocationEnabled(true);
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
                     .addOnSuccessListener(location -> {
-                        if (location != null) {
+                        if (binding == currentBinding && googleMap == currentMap && location != null) {
                             LatLng myLatLng = new LatLng(location.getLatitude(), location.getLongitude());
                             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(myLatLng, 14f));
                         }
@@ -302,6 +308,12 @@ public class PitchMapFragment extends Fragment implements OnMapReadyCallback {
 
     @Override
     public void onDestroyView() {
+        if (googleMap != null) {
+            googleMap.setOnMarkerClickListener(null);
+            googleMap.setOnMapClickListener(null);
+        }
+        googleMap = null;
+        markerPitchMap.clear();
         super.onDestroyView();
         binding = null;
     }

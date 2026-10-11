@@ -1,6 +1,7 @@
 package com.example.footballbooking.data.remote;
 
 import com.example.footballbooking.data.remote.api.WeatherApiService;
+import com.example.footballbooking.data.remote.api.PaymentApi;
 import com.example.footballbooking.utils.Constants;
 
 import okhttp3.OkHttpClient;
@@ -22,13 +23,14 @@ public class RetrofitClient {
     private static RetrofitClient instance;
 
     private final WeatherApiService weatherApiService;
+    private final PaymentApi paymentApi;
 
     private RetrofitClient() {
         // Logging interceptor (chỉ log ở debug)
         HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
         loggingInterceptor.setLevel(
                 com.example.footballbooking.BuildConfig.DEBUG
-                        ? HttpLoggingInterceptor.Level.BODY
+                        ? HttpLoggingInterceptor.Level.BASIC
                         : HttpLoggingInterceptor.Level.NONE
         );
 
@@ -49,6 +51,14 @@ public class RetrofitClient {
                 .build();
 
         weatherApiService = weatherRetrofit.create(WeatherApiService.class);
+
+        paymentApi = new Retrofit.Builder()
+            .baseUrl(com.example.footballbooking.BuildConfig.PAYMENT_BASE_URL)
+            .client(new OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS)
+                .writeTimeout(20, TimeUnit.SECONDS).followRedirects(false).build())
+            .addConverterFactory(GsonConverterFactory.create())
+            .build().create(PaymentApi.class);
     }
 
     public static synchronized RetrofitClient getInstance() {
@@ -59,4 +69,6 @@ public class RetrofitClient {
     public WeatherApiService getWeatherApiService() {
         return weatherApiService;
     }
+
+    public PaymentApi getPaymentApi() { return paymentApi; }
 }

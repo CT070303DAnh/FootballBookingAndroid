@@ -15,6 +15,8 @@ public class User {
     private String email;
     private String displayName;
     private String phoneNumber;
+    private String bankName;
+    private String bankAccountNumber;
     private String avatarUrl;
     private String role;        // "customer" hoặc "admin" — xem Constants.java
     private String fcmToken;    // FCM token để gửi push notification
@@ -35,6 +37,10 @@ public class User {
         this.email = email;
         this.displayName = displayName;
         this.phoneNumber = phoneNumber;
+        this.bankName = Constants.ROLE_OWNER.equals(role)
+                ? Constants.DEFAULT_OWNER_BANK_NAME : "";
+        this.bankAccountNumber = Constants.ROLE_OWNER.equals(role)
+                ? Constants.normalizeOwnerBankAccount(phoneNumber) : "";
         this.role = role;
         this.avatarUrl = "";
         this.fcmToken = "";
@@ -53,6 +59,14 @@ public class User {
 
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getBankName() { return bankName; }
+    public void setBankName(String bankName) { this.bankName = bankName; }
+
+    public String getBankAccountNumber() { return bankAccountNumber; }
+    public void setBankAccountNumber(String bankAccountNumber) {
+        this.bankAccountNumber = bankAccountNumber;
+    }
 
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }

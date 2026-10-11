@@ -7,6 +7,8 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -45,10 +47,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class PitchAddEditDialogFragment extends BottomSheetDialogFragment implements OnMapReadyCallback {
 
     private DialogAddEditPitchBinding binding;
+    private final ExecutorService geocoderExecutor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private OwnerViewModel ownerViewModel;
     private FusedLocationProviderClient fusedLocationClient;
 
@@ -223,30 +229,33 @@ public class PitchAddEditDialogFragment extends BottomSheetDialogFragment implem
     private void searchAddressOnMap(String addressText) {
         if (getContext() == null || googleMap == null) return;
         Geocoder geocoder = new Geocoder(getContext());
-        new Thread(() -> {
+        geocoderExecutor.execute(() -> {
             try {
                 List<Address> addresses = geocoder.getFromLocationName(addressText, 1);
                 if (addresses != null && !addresses.isEmpty()) {
                     Address address = addresses.get(0);
                     LatLng foundLatLng = new LatLng(address.getLatitude(), address.getLongitude());
-                    requireActivity().runOnUiThread(() -> {
+                    mainHandler.post(() -> {
+                        if (!isAdded() || binding == null || googleMap == null) return;
                         selectedLatLng = foundLatLng;
                         if (locationMarker != null) {
                             locationMarker.setPosition(foundLatLng);
                         }
                         googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(foundLatLng, 15f));
-                    });
+                    ;});
                 } else {
-                    requireActivity().runOnUiThread(() -> 
+                    mainHandler.post(() -> {
+                        if (!isAdded() || binding == null) return;
                         Snackbar.make(binding.getRoot(), "Không tìm thấy địa chỉ này trên bản đồ", Snackbar.LENGTH_SHORT).show()
-                    );
+                    ;});
                 }
             } catch (IOException e) {
-                requireActivity().runOnUiThread(() -> 
+                mainHandler.post(() -> {
+                    if (!isAdded() || binding == null) return;
                     Snackbar.make(binding.getRoot(), "Lỗi mạng khi tìm địa chỉ", Snackbar.LENGTH_SHORT).show()
-                );
+                ;});
             }
-        }).start();
+        });
     }
 
     private void checkPermissionAndGetLocation() {
@@ -343,7 +352,14 @@ public class PitchAddEditDialogFragment extends BottomSheetDialogFragment implem
 
     @Override
     public void onDestroyView() {
+        mainHandler.removeCallbacksAndMessages(null);
         super.onDestroyView();
         binding = null;
+    }
+
+    @Override
+    public void onDestroy() {
+        geocoderExecutor.shutdownNow();
+        super.onDestroy();
     }
 }

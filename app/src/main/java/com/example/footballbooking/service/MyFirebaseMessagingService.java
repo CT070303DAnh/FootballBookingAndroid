@@ -48,7 +48,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onNewToken(@NonNull String token) {
         super.onNewToken(token);
-        Log.d(TAG, "New FCM Token: " + token);
         // Lưu token vào Firestore để server có thể gửi notification
         saveTokenToFirestore(token);
     }

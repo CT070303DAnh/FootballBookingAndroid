@@ -7,7 +7,11 @@ import com.example.footballbooking.utils.Constants;
 import com.example.footballbooking.utils.Resource;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Source;
+
+import java.util.function.Consumer;
 
 /**
  * AuthRepository — Single source of truth cho Authentication.
@@ -169,49 +173,70 @@ public class AuthRepository {
     /** Fetch User document từ Firestore theo UID */
     private void fetchUserFromFirestore(String uid,
                                         MutableLiveData<Resource<User>> result) {
-        if (uid == null) {
-            result.setValue(Resource.error("UID không hợp lệ", null));
+        FirebaseUser firebaseUser = mAuth.getCurrentUser();
+        if (firebaseUser == null || !firebaseUser.getUid().equals(uid)) {
+            result.setValue(Resource.error("Phiên đăng nhập đã thay đổi. Vui lòng đăng nhập lại.", null));
             return;
         }
-        mDb.collection(Constants.COL_USERS)
-                .document(uid)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        User user = documentSnapshot.toObject(User.class);
-                        if (user != null && Constants.STATUS_BLOCKED.equals(user.getStatus())) {
-                            mAuth.signOut(); // Đăng xuất ngay lập tức
-                            result.setValue(Resource.error("Tài khoản của bạn đã bị đình chỉ.", null));
-                        } else {
-                            result.setValue(Resource.success(user));
-                        }
-                    } else {
-                        // Tự động khôi phục nếu user đã có trong Firebase Auth nhưng chưa có profile Firestore
-                        FirebaseUser currentFirebaseUser = mAuth.getCurrentUser();
-                        if (currentFirebaseUser != null && uid.equals(currentFirebaseUser.getUid())) {
-                            String email = currentFirebaseUser.getEmail() != null ? currentFirebaseUser.getEmail() : "";
-                            String role = Constants.ROLE_CUSTOMER;
-                            String name = "Khách hàng";
-                            if (email.contains("admin")) {
-                                role = Constants.ROLE_ADMIN;
-                                name = "Admin System";
-                            } else if (email.contains("owner")) {
-                                role = Constants.ROLE_OWNER;
-                                name = "Chủ sân";
-                            }
-                            User fallbackUser = new User(uid, email, name, "0900 000 000", role);
-                            mDb.collection(Constants.COL_USERS).document(uid).set(fallbackUser)
-                                    .addOnSuccessListener(v -> result.setValue(Resource.success(fallbackUser)))
-                                    .addOnFailureListener(e -> result.setValue(
-                                            Resource.error("Lỗi tạo hồ sơ Firestore: " + e.getMessage(), null)));
-                        } else {
-                            result.setValue(Resource.error("Không tìm thấy thông tin tài khoản", null));
-                        }
+        loadCurrentUserProfile(firebaseUser, result::setValue);
+    }
+
+    /** Đọc quyền từ server để không điều hướng theo hồ sơ cache đã cũ. */
+    private void loadCurrentUserProfile(FirebaseUser firebaseUser,
+                                        Consumer<Resource<User>> callback) {
+        String uid = firebaseUser.getUid();
+        DocumentReference userRef = mDb.collection(Constants.COL_USERS).document(uid);
+        userRef.get(Source.SERVER)
+                .addOnSuccessListener(snapshot -> {
+                    if (!isCurrentUser(uid)) {
+                        callback.accept(Resource.error("Phiên đăng nhập đã thay đổi.", null));
+                        return;
                     }
+                    if (snapshot.exists()) {
+                        deliverUserProfile(uid, snapshot.toObject(User.class), callback);
+                        return;
+                    }
+
+                    // Không suy luận quyền từ email. Transaction tránh ghi đè một
+                    // hồ sơ vừa được tạo/duyệt trong lúc request đang chạy.
+                    User fallback = new User(uid,
+                            firebaseUser.getEmail() != null ? firebaseUser.getEmail() : "",
+                            firebaseUser.getDisplayName() != null ? firebaseUser.getDisplayName() : "Khách hàng",
+                            firebaseUser.getPhoneNumber() != null ? firebaseUser.getPhoneNumber() : "",
+                            Constants.ROLE_CUSTOMER);
+                    mDb.runTransaction(transaction -> {
+                        com.google.firebase.firestore.DocumentSnapshot current = transaction.get(userRef);
+                        if (current.exists()) {
+                            return current.toObject(User.class);
+                        }
+                        transaction.set(userRef, fallback);
+                        return fallback;
+                    }).addOnSuccessListener(user -> deliverUserProfile(uid, user, callback))
+                      .addOnFailureListener(e -> callback.accept(Resource.error(
+                              "Không thể khôi phục hồ sơ. Vui lòng thử lại: " + e.getMessage(), null)));
                 })
-                .addOnFailureListener(e ->
-                        result.setValue(Resource.error("Lỗi kết nối: " + e.getMessage(), null))
-                );
+                .addOnFailureListener(e -> callback.accept(Resource.error(
+                        "Không thể xác minh hồ sơ. Vui lòng kiểm tra kết nối: " + e.getMessage(), null)));
+    }
+
+    private boolean isCurrentUser(String uid) {
+        FirebaseUser current = mAuth.getCurrentUser();
+        return current != null && uid.equals(current.getUid());
+    }
+
+    private void deliverUserProfile(String uid, User user, Consumer<Resource<User>> callback) {
+        if (!isCurrentUser(uid)) {
+            callback.accept(Resource.error("Phiên đăng nhập đã thay đổi.", null));
+        } else if (user == null) {
+            callback.accept(Resource.error("Hồ sơ người dùng không hợp lệ.", null));
+        } else if (Constants.STATUS_BLOCKED.equals(user.getStatus())) {
+            mAuth.signOut();
+            callback.accept(Resource.error("Tài khoản của bạn đã bị đình chỉ.", null));
+        } else {
+            // Document ID là định danh tin cậy, kể cả với hồ sơ cũ thiếu field uid.
+            user.setUid(uid);
+            callback.accept(Resource.success(user));
+        }
     }
 
     /**
@@ -248,30 +273,7 @@ public class AuthRepository {
             callback.accept(Resource.error("Chưa đăng nhập", null));
             return;
         }
-        mDb.collection(Constants.COL_USERS)
-                .document(firebaseUser.getUid())
-                .get()
-                .addOnSuccessListener(doc -> {
-                    if (doc.exists()) {
-                        callback.accept(Resource.success(doc.toObject(User.class)));
-                    } else {
-                        String email = firebaseUser.getEmail() != null ? firebaseUser.getEmail() : "";
-                        String role = Constants.ROLE_CUSTOMER;
-                        String name = "Khách hàng";
-                        if (email.contains("admin")) {
-                            role = Constants.ROLE_ADMIN;
-                            name = "Admin System";
-                        } else if (email.contains("owner")) {
-                            role = Constants.ROLE_OWNER;
-                            name = "Chủ sân";
-                        }
-                        User fallback = new User(firebaseUser.getUid(), email, name, "0900 000 000", role);
-                        mDb.collection(Constants.COL_USERS).document(firebaseUser.getUid()).set(fallback);
-                        callback.accept(Resource.success(fallback));
-                    }
-                })
-                .addOnFailureListener(e ->
-                        callback.accept(Resource.error(e.getMessage(), null)));
+        loadCurrentUserProfile(firebaseUser, callback);
     }
 
     /**
@@ -295,6 +297,8 @@ public class AuthRepository {
                     owner.setDisplayName(displayName);
                     owner.setPhoneNumber(phoneNumber);
                     owner.setRole(Constants.ROLE_OWNER_PENDING); // Chờ Admin duyệt
+                    owner.setBankName(Constants.DEFAULT_OWNER_BANK_NAME);
+                    owner.setBankAccountNumber(Constants.normalizeOwnerBankAccount(phoneNumber));
 
                     mDb.collection(Constants.COL_USERS)
                             .document(firebaseUser.getUid())

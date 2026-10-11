@@ -324,7 +324,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="80dp"
-        android:text="Đặt sân"
+        android:text="Tìm sân theo giờ"
         app:icon="@android:drawable/ic_menu_add"
         app:backgroundTint="@color/primary"
         android:textColor="@color/white"

@@ -1,7 +1,10 @@
 package com.example.footballbooking.ui.customer.payment;
 
-import android.graphics.Bitmap;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -9,267 +12,396 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.footballbooking.BuildConfig;
+import com.example.footballbooking.data.remote.RetrofitClient;
+import com.example.footballbooking.data.remote.api.PaymentApi;
 import com.example.footballbooking.databinding.ActivityPaymentBinding;
+import com.example.footballbooking.ui.customer.CustomerMainActivity;
 import com.example.footballbooking.utils.Constants;
-import com.google.android.material.snackbar.Snackbar;
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.TreeMap;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 /**
- * PaymentActivity — Tích hợp VNPay Sandbox qua WebView.
- *
- * LUỒNG THANH TOÁN:
- * 1. Activity nhận bookingId + totalAmount từ Intent
- * 2. Build VNPay payment URL với HMAC-SHA512 signature
- * 3. Mở URL trong WebView
- * 4. Override WebViewClient.shouldOverrideUrlLoading() để intercept callback URL
- * 5. Parse kết quả → update paymentStatus trong Firestore
- *
- * URL CALLBACK PATTERN VNPay:
- * vnpay://success?vnp_ResponseCode=00&vnp_TxnRef={bookingId}
- * vnpay://failed?vnp_ResponseCode=24  (User hủy)
- *
- * CHÚ Ý SANDBOX:
- * - Dùng thẻ test: 9704198526191432198, exp 07/15, OTP 123456
- * - Terminal ID & Secret từ https://sandbox.vnpayment.vn/merchantv2
+ * Màn hình thanh toán PayOS VietQR.
+ * Return/cancel chỉ là tín hiệu điều hướng; webhook mới xác nhận thanh toán.
  */
 public class PaymentActivity extends AppCompatActivity {
-
-    // VNPay Sandbox constants
-    private static final String VNP_TMN_CODE   = "YOUR_TMN_CODE";   // Điền TMN Code từ sandbox
-    private static final String VNP_RETURN_URL = "vnpay://payment_result"; // Deep link callback
+    private static final String PAYOS_CHECKOUT_HOST = "pay.payos.vn";
 
     private ActivityPaymentBinding binding;
     private String bookingId;
-    private long totalAmount;
+    private String paymentRef;
+    private boolean checkingResult;
+    private boolean busy;
+    private boolean checkAfterCurrentRequest;
+    private boolean reconcileNext;
+    private boolean reopenCheckout;
+    private int pollCount;
+    private Call<PaymentApi.Session> activeCall;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable poll = () -> {
+        reconcileNext = false;
+        requestSession(false);
+    };
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        setupBackNavigation();
         binding = ActivityPaymentBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        bookingId   = getIntent().getStringExtra(Constants.EXTRA_BOOKING_ID);
-        totalAmount = getIntent().getLongExtra("extra_amount", 0);
-
-        if (bookingId == null || totalAmount == 0) { finish(); return; }
-
-        binding.toolbar.setNavigationOnClickListener(v -> showCancelConfirm());
-
+        binding.toolbar.setNavigationOnClickListener(v -> showExitConfirm());
         setupWebView();
-        buildAndLoadPaymentUrl();
+
+        bookingId = state == null
+                ? getIntent().getStringExtra(Constants.EXTRA_BOOKING_ID)
+                : state.getString("bookingId");
+        paymentRef = state == null ? null : state.getString("paymentRef");
+        checkingResult = state != null && state.getBoolean("checkingResult");
+
+        if (getIntent().getData() != null) {
+            acceptCallback(getIntent().getData());
+        } else if (bookingId == null || !bookingId.matches("[A-Za-z0-9_-]{1,128}")) {
+            showResult(false, "Không tìm thấy đơn cần thanh toán.", false);
+        } else {
+            requestSession(!checkingResult);
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        acceptCallback(intent.getData());
     }
 
     private void setupWebView() {
         WebSettings settings = binding.webViewPayment.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
-        settings.setLoadWithOverviewMode(true);
-        settings.setUseWideViewPort(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
 
         binding.webViewPayment.setWebChromeClient(new WebChromeClient() {
             @Override
-            public void onProgressChanged(WebView view, int newProgress) {
-                binding.progressPayment.setProgress(newProgress);
-                binding.progressPayment.setVisibility(
-                        newProgress == 100 ? View.GONE : View.VISIBLE);
+            public void onProgressChanged(WebView view, int progress) {
+                if (binding == null || checkingResult) return;
+                binding.progressPayment.setProgress(progress);
+                binding.progressPayment.setVisibility(progress == 100 ? View.GONE : View.VISIBLE);
             }
         });
-
         binding.webViewPayment.setWebViewClient(new WebViewClient() {
             @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                binding.progressPayment.setVisibility(View.VISIBLE);
+            public void onReceivedError(WebView view, WebResourceRequest request,
+                                        android.webkit.WebResourceError error) {
+                if (request.isForMainFrame()) showGatewayError();
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request,
+                                            android.webkit.WebResourceResponse response) {
+                if (request.isForMainFrame()) showGatewayError();
+            }
+
+            @Override
+            public void onReceivedSslError(WebView view,
+                                           android.webkit.SslErrorHandler sslHandler,
+                                           android.net.http.SslError error) {
+                sslHandler.cancel();
+                showGatewayError();
             }
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                String url = request.getUrl().toString();
-                // Intercept callback URL từ VNPay
-                if (url.startsWith("vnpay://")) {
-                    handlePaymentCallback(url);
-                    return true; // Không load URL này vào WebView
+                Uri uri = request.getUrl();
+                if ("footballbooking".equals(uri.getScheme())) {
+                    if (request.isForMainFrame()) acceptCallback(uri);
+                    return true;
                 }
-                return false; // Cho WebView tự handle
+                if (!"https".equals(uri.getScheme())) {
+                    if (request.isForMainFrame()) {
+                        showResult(false, "Liên kết thanh toán không hợp lệ. Vui lòng thử lại.",
+                                paymentRef != null);
+                    }
+                    return true;
+                }
+                return false;
             }
         });
     }
 
-    /**
-     * Build VNPay payment URL theo tài liệu kỹ thuật VNPay 2.1.0
-     *
-     * Tham số bắt buộc:
-     * vnp_Version, vnp_Command, vnp_TmnCode, vnp_Amount (×100),
-     * vnp_CreateDate, vnp_CurrCode, vnp_IpAddr, vnp_Locale,
-     * vnp_OrderInfo, vnp_OrderType, vnp_ReturnUrl, vnp_TxnRef
-     */
-    private void buildAndLoadPaymentUrl() {
-        TreeMap<String, String> params = new TreeMap<>(); // TreeMap tự sort theo key — quan trọng cho HMAC
+    private void showGatewayError() {
+        checkingResult = true;
+        handler.removeCallbacks(poll);
+        showResult(false,
+                "Không tải được trang PayOS. Nếu đã trừ tiền, hãy kiểm tra trạng thái trước khi thanh toán lại.",
+                paymentRef != null);
+    }
 
-        String createDate = new SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
-                .format(new Date());
-
-        params.put("vnp_Version",    "2.1.0");
-        params.put("vnp_Command",    "pay");
-        params.put("vnp_TmnCode",    VNP_TMN_CODE);
-        params.put("vnp_Amount",     String.valueOf(totalAmount * 100)); // VNPay nhân 100
-        params.put("vnp_CreateDate", createDate);
-        params.put("vnp_CurrCode",   "VND");
-        params.put("vnp_IpAddr",     "127.0.0.1");
-        params.put("vnp_Locale",     "vn");
-        params.put("vnp_OrderInfo",  "Dat san bong: " + bookingId);
-        params.put("vnp_OrderType",  "other");
-        params.put("vnp_ReturnUrl",  VNP_RETURN_URL);
-        params.put("vnp_TxnRef",     bookingId);
-
-        // Tính expire date (+15 phút)
-        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
-        cal.add(Calendar.MINUTE, 15);
-        params.put("vnp_ExpireDate",
-                new SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(cal.getTime()));
-
-        // Build query string để ký
-        StringBuilder queryBuilder = new StringBuilder();
-        for (Map.Entry<String, String> entry : params.entrySet()) {
-            if (queryBuilder.length() > 0) queryBuilder.append("&");
-            queryBuilder.append(entry.getKey()).append("=").append(entry.getValue());
+    private void acceptCallback(Uri uri) {
+        if (uri == null || !"footballbooking".equals(uri.getScheme())
+                || !"payment_result".equals(uri.getHost())) {
+            showResult(false, "Đường dẫn thanh toán không hợp lệ.", false);
+            return;
         }
 
-        // HMAC-SHA512 signature
-        String secretKey = BuildConfig.VNPAY_HASH_SECRET;
-        String signature = hmacSHA512(secretKey, queryBuilder.toString());
-        params.put("vnp_SecureHash", signature);
+        String ref = uri.getQueryParameter("payment_ref");
+        String result = uri.getQueryParameter("result");
+        if (ref == null || !ref.matches("[a-f0-9]{32}")
+                || (paymentRef != null && !paymentRef.equals(ref))) {
+            showResult(false, "Đường dẫn không khớp giao dịch đang mở.", false);
+            return;
+        }
+        if (!"success".equals(result) && !"cancel".equals(result)) {
+            showResult(false, "Không xác định được kết quả thanh toán.", false);
+            return;
+        }
 
-        // Build final URL
-        StringBuilder finalUrl = new StringBuilder(Constants.VNPAY_BASE_URL)
-                .append("paymentv2/vpcpay.html?");
-        boolean first = true;
-        for (Map.Entry<String, String> entry : params.entrySet()) {
-            if (!first) finalUrl.append("&");
-            try {
-                finalUrl.append(entry.getKey()).append("=")
-                        .append(java.net.URLEncoder.encode(entry.getValue(), "UTF-8"));
-            } catch (Exception ignored) {
-                finalUrl.append(entry.getKey()).append("=").append(entry.getValue());
+        paymentRef = ref;
+        reopenCheckout = "cancel".equals(result);
+        checkingResult = !reopenCheckout;
+        pollCount = 0;
+        reconcileNext = false;
+        handler.removeCallbacks(poll);
+
+        if (busy) {
+            checkAfterCurrentRequest = true;
+            return;
+        }
+        requestSession(false);
+    }
+
+    private void requestSession(boolean create) {
+        requestSession(create, false);
+    }
+
+    private void requestSession(boolean create, boolean forceRefreshToken) {
+        if (binding == null || isFinishing() || busy) return;
+        if (!BuildConfig.DEBUG && !"https".equals(Uri.parse(BuildConfig.PAYMENT_BASE_URL).getScheme())) {
+            showResult(false, "Kết nối thanh toán chưa được cấu hình an toàn.", false);
+            return;
+        }
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            showResult(false, "Vui lòng đăng nhập để kiểm tra thanh toán.", false);
+            return;
+        }
+        if (!create && paymentRef == null) {
+            showResult(false, "Không tìm thấy giao dịch cần kiểm tra.", false);
+            return;
+        }
+
+        busy = true;
+        final boolean reconcile = !create && reconcileNext;
+        reconcileNext = false;
+        binding.progressPayment.setVisibility(View.VISIBLE);
+        if (!create && !reopenCheckout) {
+            showResult(false, "Đang chờ PayOS xác nhận thanh toán…", false);
+        }
+
+        user.getIdToken(forceRefreshToken).addOnCompleteListener(task -> {
+            if (binding == null || isFinishing()) return;
+            FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
+            if (!task.isSuccessful() || current == null || !user.getUid().equals(current.getUid())
+                    || task.getResult() == null || task.getResult().getToken() == null) {
+                busy = false;
+                showResult(false, "Phiên đăng nhập đã thay đổi. Vui lòng đăng nhập lại.", false);
+                return;
             }
-            first = false;
+
+            PaymentApi api = RetrofitClient.getInstance().getPaymentApi();
+            String bearer = "Bearer " + task.getResult().getToken();
+            activeCall = create ? api.create(bearer, new PaymentApi.CreateRequest(bookingId))
+                    : reconcile ? api.reconcile(bearer, paymentRef)
+                    : api.status(bearer, paymentRef);
+            activeCall.enqueue(new Callback<PaymentApi.Session>() {
+                @Override
+                public void onResponse(@NonNull Call<PaymentApi.Session> call,
+                                       @NonNull Response<PaymentApi.Session> response) {
+                    if (binding == null || isFinishing()) return;
+                    busy = false;
+                    if (response.code() == 401 && !forceRefreshToken) {
+                        requestSession(create, true);
+                        return;
+                    }
+                    if (!response.isSuccessful() || response.body() == null) {
+                        String message = "Chưa xác minh được thanh toán. Nếu đã trừ tiền, không thanh toán lại ngay.";
+                        if (response.errorBody() != null) {
+                            try {
+                                com.google.gson.JsonObject error =
+                                        com.google.gson.JsonParser.parseString(response.errorBody().string())
+                                                .getAsJsonObject();
+                                if (error.has("detail") && error.get("detail").isJsonPrimitive()) {
+                                    message = error.get("detail").getAsString();
+                                }
+                            } catch (Exception ignored) {
+                                // Keep the safe generic message.
+                            }
+                        }
+                        showResult(false, message, paymentRef != null);
+                        if (response.code() >= 500) scheduleStatusCheck();
+                        return;
+                    }
+                    if (checkAfterCurrentRequest) {
+                        checkAfterCurrentRequest = false;
+                        requestSession(false);
+                        return;
+                    }
+                    renderSession(response.body(), create);
+                }
+
+                @Override
+                public void onFailure(@NonNull Call<PaymentApi.Session> call,
+                                      @NonNull Throwable error) {
+                    if (binding == null || isFinishing() || call.isCanceled()) return;
+                    busy = false;
+                    if (checkAfterCurrentRequest) {
+                        checkAfterCurrentRequest = false;
+                        requestSession(false);
+                        return;
+                    }
+                    showResult(false,
+                            "Chưa kết nối được máy chủ. Nếu đã trừ tiền, hãy kiểm tra lại trạng thái trước khi thanh toán tiếp.",
+                            paymentRef != null);
+                    scheduleStatusCheck();
+                }
+            });
+        });
+    }
+
+    private void renderSession(PaymentApi.Session session, boolean create) {
+        if (session.bookingId == null || session.paymentRef == null
+                || (bookingId != null && !bookingId.equals(session.bookingId))
+                || (paymentRef != null && !paymentRef.equals(session.paymentRef))) {
+            showResult(false, "Giao dịch không khớp đơn đang kiểm tra.", false);
+            return;
         }
+        bookingId = session.bookingId;
+        paymentRef = session.paymentRef;
 
-        binding.webViewPayment.loadUrl(finalUrl.toString());
-    }
-
-    /**
-     * Xử lý callback URL sau khi user hoàn tất thanh toán.
-     * VNPay trả về: vnpay://payment_result?vnp_ResponseCode=00&vnp_TxnRef=...
-     *
-     * ResponseCode:
-     * "00" = Thành công
-     * "24" = Khách hủy
-     * Khác = Thất bại
-     */
-    private void handlePaymentCallback(String callbackUrl) {
-        try {
-            android.net.Uri uri = android.net.Uri.parse(callbackUrl);
-            String responseCode = uri.getQueryParameter("vnp_ResponseCode");
-            String txnRef       = uri.getQueryParameter("vnp_TxnRef");
-
-            if ("00".equals(responseCode)) {
-                // Thanh toán thành công
-                updatePaymentInFirestore(txnRef, Constants.PAYMENT_PAID,
-                        uri.getQueryParameter("vnp_TransactionNo"));
-                showPaymentResult(true, "Thanh toán thành công! ✅");
-            } else if ("24".equals(responseCode)) {
-                // Khách hủy
-                showPaymentResult(false, "Bạn đã hủy thanh toán");
-            } else {
-                showPaymentResult(false, "Thanh toán thất bại (Code: " + responseCode + ")");
-            }
-        } catch (Exception e) {
-            showPaymentResult(false, "Lỗi xử lý kết quả thanh toán");
+        if ("paid".equals(session.status)) {
+            goHome();
+        } else if ("pending".equals(session.status)
+                && (create || reopenCheckout) && session.paymentUrl != null) {
+            reopenCheckout = false;
+            openPayOsCheckout(session.paymentUrl);
+        } else if ("pending".equals(session.status)) {
+            checkingResult = true;
+            showResult(false,
+                    "Đã quay lại từ PayOS. Bạn có thể tiếp tục thanh toán hoặc kiểm tra lại trạng thái.",
+                    true);
+            scheduleStatusCheck();
+        } else if ("review".equals(session.status)) {
+            showResult(false,
+                    "Giao dịch cần đối soát. Vui lòng liên hệ chủ sân trước khi thanh toán lại.",
+                    true);
+        } else if ("expired".equals(session.status) || "failed".equals(session.status)
+                || "cancelled".equals(session.status)) {
+            showResult(false, "Giao dịch đã hết hạn hoặc chưa thành công. Vui lòng thử lại.", true);
+        } else {
+            showResult(false, "Chưa xác định được trạng thái thanh toán.", true);
         }
     }
 
-    /** Cập nhật trạng thái thanh toán trong Firestore sau khi VNPay callback */
-    private void updatePaymentInFirestore(String bookingId, String paymentStatus,
-                                          String transactionNo) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("paymentStatus", paymentStatus);
-        updates.put("transactionId", transactionNo != null ? transactionNo : "");
-
-        FirebaseFirestore.getInstance()
-                .collection(Constants.COL_BOOKINGS)
-                .document(bookingId)
-                .update(updates)
-                .addOnFailureListener(e -> {
-                    // Log lỗi nhưng không crash — payment đã thành công
-                    android.util.Log.e("Payment", "Failed to update Firestore", e);
-                });
+    private void openPayOsCheckout(String paymentUrl) {
+        Uri url = Uri.parse(paymentUrl);
+        if (!"https".equals(url.getScheme()) || url.getUserInfo() != null
+                || !PAYOS_CHECKOUT_HOST.equals(url.getHost())) {
+            showResult(false, "Đường dẫn PayOS không hợp lệ.", false);
+            return;
+        }
+        checkingResult = false;
+        binding.layoutPaymentResult.setVisibility(View.GONE);
+        binding.progressPayment.setVisibility(View.VISIBLE);
+        binding.webViewPayment.setVisibility(View.VISIBLE);
+        binding.webViewPayment.loadUrl(paymentUrl);
     }
 
-    private void showPaymentResult(boolean success, String message) {
+    private void scheduleStatusCheck() {
+        handler.removeCallbacks(poll);
+        if (checkingResult && paymentRef != null && pollCount++ < 12) {
+            handler.postDelayed(poll, 10000);
+        }
+    }
+
+    private void showResult(boolean success, String message, boolean retry) {
+        if (binding == null) return;
+        binding.btnPaymentResume.setVisibility(View.GONE);
+        binding.progressPayment.setVisibility(View.GONE);
         binding.webViewPayment.setVisibility(View.GONE);
         binding.layoutPaymentResult.setVisibility(View.VISIBLE);
-        binding.tvPaymentResultIcon.setText(success ? "✅" : "❌");
+        binding.tvPaymentResultIcon.setText(success ? "✅" : "ℹ️");
         binding.tvPaymentResultMessage.setText(message);
+        binding.btnPaymentDone.setText(retry ? "Kiểm tra lại" : "Đóng");
         binding.btnPaymentDone.setOnClickListener(v -> {
-            setResult(success ? RESULT_OK : RESULT_CANCELED);
-            finish();
+            if (retry) {
+                if (busy) return;
+                handler.removeCallbacks(poll);
+                pollCount = 0;
+                reconcileNext = true;
+                requestSession(false);
+            } else {
+                setResult(success ? RESULT_OK : RESULT_CANCELED);
+                finish();
+            }
         });
     }
 
-    private void showCancelConfirm() {
+    private void goHome() {
+        handler.removeCallbacks(poll);
+        Intent intent = new Intent(this, CustomerMainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+        finish();
+    }
+
+    private void showExitConfirm() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Hủy thanh toán?")
-                .setMessage("Đơn đặt sân vẫn được giữ, bạn có thể thanh toán sau.")
+                .setTitle("Rời màn hình thanh toán?")
+                .setMessage("Bạn có thể kiểm tra thanh toán trong lịch sử đặt sân. Rời màn hình không hủy giao dịch PayOS.")
                 .setPositiveButton("Rời khỏi", (d, w) -> finish())
-                .setNegativeButton("Tiếp tục thanh toán", null)
+                .setNegativeButton("Tiếp tục", null)
                 .show();
     }
 
-    // ============================================================
-    // HMAC-SHA512 Signature
-    // ============================================================
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        outState.putString("bookingId", bookingId);
+        outState.putString("paymentRef", paymentRef);
+        outState.putBoolean("checkingResult", checkingResult);
+        super.onSaveInstanceState(outState);
+    }
 
-    /** Tính chữ ký HMAC-SHA512 theo chuẩn VNPay */
-    private static String hmacSHA512(String key, String data) {
-        try {
-            Mac hmac = Mac.getInstance("HmacSHA512");
-            SecretKeySpec secretKey = new SecretKeySpec(
-                    key.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
-            hmac.init(secretKey);
-            byte[] hash = hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            // Convert byte array → hex string
-            StringBuilder result = new StringBuilder();
-            for (byte b : hash) {
-                result.append(String.format("%02x", b));
+    private void setupBackNavigation() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                showExitConfirm();
             }
-            return result.toString();
-        } catch (Exception e) {
-            return "";
-        }
+        });
     }
 
     @Override
-    public void onBackPressed() {
-        if (binding.webViewPayment.canGoBack()) {
-            binding.webViewPayment.goBack();
-        } else {
-            showCancelConfirm();
+    protected void onDestroy() {
+        handler.removeCallbacks(poll);
+        if (activeCall != null) activeCall.cancel();
+        if (binding != null) {
+            binding.webViewPayment.stopLoading();
+            binding.webViewPayment.setWebChromeClient(null);
+            binding.webViewPayment.setWebViewClient(new WebViewClient());
+            binding.webViewPayment.destroy();
         }
+        binding = null;
+        super.onDestroy();
     }
 }

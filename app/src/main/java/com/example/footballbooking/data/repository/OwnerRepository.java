@@ -9,7 +9,6 @@ import com.example.footballbooking.utils.Resource;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
-import com.google.firebase.firestore.WriteBatch;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
@@ -166,13 +165,16 @@ public class OwnerRepository {
                             update.put("imageUrls",
                                     com.google.firebase.firestore.FieldValue.arrayUnion(uri.toString()));
                             mDb.collection(Constants.COL_PITCHES).document(pitchId)
-                                    .update(update);
-                            result.setValue(Resource.success(uri.toString()));
+                                    .update(update)
+                                    .addOnSuccessListener(v -> result.setValue(
+                                            Resource.success(uri.toString())))
+                                    .addOnFailureListener(e -> result.setValue(
+                                            Resource.error("Không thể cập nhật ảnh sân", null)));
                         })
                         .addOnFailureListener(e -> result.setValue(
-                                Resource.error(e.getMessage(), null))))
+                                Resource.error("Không thể lấy URL ảnh", null))))
                 .addOnFailureListener(e -> result.setValue(
-                        Resource.error("Upload thất bại: " + e.getMessage(), null)));
+                        Resource.error("Upload ảnh thất bại", null)));
     }
 
     // ============================================================
@@ -216,39 +218,9 @@ public class OwnerRepository {
         }
         result.setValue(Resource.loading(null));
 
-        WriteBatch batch = mDb.batch();
-        batch.update(
-                mDb.collection(Constants.COL_BOOKINGS).document(booking.getBookingId()),
-                "bookingStatus", Constants.STATUS_APPROVED);
-
-        // Lock slot
-        Map<String, Object> slotUpdate = new HashMap<>();
-        slotUpdate.put("slots." + booking.getSlotId() + ".status", "booked");
-        slotUpdate.put("slots." + booking.getSlotId() + ".bookingId", booking.getBookingId());
-        batch.set(
-                mDb.collection(Constants.COL_PITCHES)
-                   .document(booking.getPitchId())
-                   .collection(Constants.SUB_AVAILABILITY)
-                   .document(booking.getBookingDate()),
-                slotUpdate,
-                com.google.firebase.firestore.SetOptions.merge()
-        );
-
-        // FCM queue
-        Map<String, Object> fcm = new HashMap<>();
-        fcm.put("type", Constants.NOTIF_BOOKING_APPROVED);
-        fcm.put("bookingId", booking.getBookingId());
-        fcm.put("customerId", booking.getCustomerId());
-        fcm.put("pitchName", booking.getPitchName());
-        fcm.put("time", booking.getStartTime());
-        fcm.put("processed", false);
-        fcm.put("createdAt", com.google.firebase.firestore.FieldValue.serverTimestamp());
-        batch.set(mDb.collection("fcm_queue").document(), fcm);
-
-        batch.commit()
+        BookingRepository.getInstance().transitionBooking(booking.getBookingId(), Constants.STATUS_APPROVED, null)
                 .addOnSuccessListener(v -> result.setValue(Resource.success(true)))
-                .addOnFailureListener(e -> result.setValue(
-                        Resource.error("Duyệt thất bại: " + e.getMessage(), false)));
+                .addOnFailureListener(e -> result.setValue(Resource.error("Duyệt thất bại: " + e.getMessage(), false)));
     }
 
     /**
@@ -266,15 +238,9 @@ public class OwnerRepository {
         }
         result.setValue(Resource.loading(null));
 
-        Map<String, Object> update = new HashMap<>();
-        update.put("bookingStatus", Constants.STATUS_REJECTED);
-        update.put("rejectionReason", reason != null ? reason : "");
-
-        mDb.collection(Constants.COL_BOOKINGS).document(booking.getBookingId())
-                .update(update)
+        BookingRepository.getInstance().transitionBooking(booking.getBookingId(), Constants.STATUS_REJECTED, reason)
                 .addOnSuccessListener(v -> result.setValue(Resource.success(true)))
-                .addOnFailureListener(e -> result.setValue(
-                        Resource.error(e.getMessage(), false)));
+                .addOnFailureListener(e -> result.setValue(Resource.error("Từ chối thất bại: " + e.getMessage(), false)));
     }
 
     /**
@@ -295,19 +261,23 @@ public class OwnerRepository {
     /**
      * Lấy booking theo tháng để tính doanh thu — chỉ của sân owner.
      */
+    private long reportGeneration;
+
     public void getMyBookingsByMonth(String ownerId, String yearMonth,
                                      MutableLiveData<Resource<List<Booking>>> result) {
+        final long generation = ++reportGeneration;
         result.setValue(Resource.loading(null));
         mDb.collection(Constants.COL_BOOKINGS)
                 .whereEqualTo("pitchOwnerId", ownerId)
-                .whereEqualTo("bookingStatus", Constants.STATUS_APPROVED)
                 .whereGreaterThanOrEqualTo("bookingDate", yearMonth + "-01")
                 .whereLessThanOrEqualTo("bookingDate", yearMonth + "-31")
                 .get()
-                .addOnSuccessListener(snap -> result.setValue(
-                        Resource.success(snap.toObjects(Booking.class))))
-                .addOnFailureListener(e -> result.setValue(
-                        Resource.error(e.getMessage(), null)));
+                .addOnSuccessListener(snap -> {
+                    if (generation == reportGeneration) result.setValue(Resource.success(snap.toObjects(Booking.class)));
+                })
+                .addOnFailureListener(e -> {
+                    if (generation == reportGeneration) result.setValue(Resource.error(e.getMessage(), null));
+                });
     }
 
     // ============================================================

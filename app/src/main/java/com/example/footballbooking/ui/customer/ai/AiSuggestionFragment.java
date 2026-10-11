@@ -128,11 +128,17 @@ public class AiSuggestionFragment extends Fragment
     }
 
     private void loadAi(boolean hasPermission) {
+        if (binding == null || !isAdded()) return;
+        final com.example.footballbooking.databinding.FragmentAiSuggestionBinding currentBinding = binding;
         if (hasPermission && ContextCompat.checkSelfPermission(requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
-                    .addOnSuccessListener(location -> aiViewModel.loadAiSuggestions(location))
-                    .addOnFailureListener(e -> aiViewModel.loadAiSuggestions(null));
+                    .addOnSuccessListener(location -> {
+                        if (binding == currentBinding) aiViewModel.loadAiSuggestions(location);
+                    })
+                    .addOnFailureListener(e -> {
+                        if (binding == currentBinding) aiViewModel.loadAiSuggestions(null);
+                    });
         } else {
             aiViewModel.loadAiSuggestions(null); // Không có GPS → dùng Hà Nội fallback
         }

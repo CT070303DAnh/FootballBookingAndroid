@@ -28,6 +28,19 @@ public final class Constants {
     public static final String ROLE_OWNER         = "owner";         // Chủ sân
     public static final String ROLE_OWNER_PENDING = "owner_pending"; // Chủ sân chờ Admin duyệt
 
+    // ===== OWNER PAYMENT INFO =====
+    // Mặc định dùng để nhận tiền đặt sân. Số tài khoản là số điện thoại chủ sân.
+    public static final String DEFAULT_OWNER_BANK_NAME = "MB Bank";
+
+    /**
+     * Chuẩn hóa số điện thoại để dùng làm số tài khoản ngân hàng.
+     * Ví dụ: "0912 345 678" -> "0912345678".
+     */
+    public static String normalizeOwnerBankAccount(String phoneNumber) {
+        if (phoneNumber == null) return "";
+        return phoneNumber.replaceAll("[^0-9]", "");
+    }
+
     // ===== BOOKING STATUS =====
     public static final String STATUS_PENDING   = "pending";
     public static final String STATUS_APPROVED  = "approved";
@@ -44,6 +57,8 @@ public final class Constants {
     public static final String PAYMENT_UNPAID   = "unpaid";
     public static final String PAYMENT_PAID     = "paid";
     public static final String PAYMENT_REFUNDED = "refunded";
+    public static final String METHOD_PAYOS     = "payos";
+    /** Legacy value kept so old Firestore bookings remain readable. */
     public static final String METHOD_VNPAY     = "vnpay";
     public static final String METHOD_CASH      = "cash";
     public static final String METHOD_PAY_LATER = "pay_later"; // Thanh toán sau
@@ -66,7 +81,6 @@ public final class Constants {
 
     // ===== API BASE URLs =====
     public static final String WEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/";
-    public static final String VNPAY_BASE_URL   = "https://sandbox.vnpayment.vn/";
 
     // ===== SHARED PREFERENCES =====
     public static final String PREF_NAME      = "football_booking_prefs";
@@ -75,6 +89,8 @@ public final class Constants {
     // ===== INTENT EXTRAS =====
     public static final String EXTRA_PITCH_ID   = "extra_pitch_id";
     public static final String EXTRA_BOOKING_ID = "extra_booking_id";
+    public static final String EXTRA_BOOKING_DATE = "extra_booking_date";
+    public static final String EXTRA_SLOT_ID = "extra_slot_id";
     public static final String EXTRA_USER_ROLE  = "extra_user_role";
     public static final String EXTRA_OWNER_ID   = "extra_owner_id";
 

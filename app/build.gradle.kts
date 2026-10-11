@@ -29,12 +29,33 @@ android {
 
         val openWeatherKey: String = localProps.getProperty("OPENWEATHER_API_KEY")
             ?: (project.findProperty("OPENWEATHER_API_KEY") as String? ?: "")
-        val vnpaySecret: String = localProps.getProperty("VNPAY_HASH_SECRET")
-            ?: (project.findProperty("VNPAY_HASH_SECRET") as String? ?: "")
         val mapsApiKey: String = localProps.getProperty("GOOGLE_MAPS_API_KEY")
             ?: (project.findProperty("GOOGLE_MAPS_API_KEY") as String? ?: "")
+        val backendBaseUrl: String = localProps.getProperty("BACKEND_BASE_URL")
+            ?: (project.findProperty("BACKEND_BASE_URL") as String?
+                ?: "http://10.0.2.2:8000/")
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"$openWeatherKey\"")
-        buildConfigField("String", "VNPAY_HASH_SECRET", "\"$vnpaySecret\"")
+        val paymentBaseUrl = localProps.getProperty("PAYMENT_BASE_URL")
+            ?: (project.findProperty("PAYMENT_BASE_URL") as String? ?: backendBaseUrl)
+
+        val isReleaseTask = gradle.startParameter.taskNames.any {
+            it.contains("release", ignoreCase = true)
+        }
+        if (isReleaseTask) {
+            require(openWeatherKey.isNotBlank()) {
+                "OPENWEATHER_API_KEY is required for release builds"
+            }
+            require(mapsApiKey.isNotBlank()) {
+                "GOOGLE_MAPS_API_KEY is required for release builds"
+            }
+            require(backendBaseUrl.startsWith("https://")) {
+                "BACKEND_BASE_URL must use HTTPS for release builds"
+            }
+            require(paymentBaseUrl.startsWith("https://")) {
+                "PAYMENT_BASE_URL must use HTTPS for release builds"
+            }
+        }
+        buildConfigField("String", "PAYMENT_BASE_URL", "\"$paymentBaseUrl\"")
         // Inject Maps API Key vào AndroidManifest
         manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = mapsApiKey
     }

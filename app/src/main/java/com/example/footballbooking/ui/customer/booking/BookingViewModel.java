@@ -51,17 +51,41 @@ public class BookingViewModel extends ViewModel {
     private String selectedDate;           // "2025-06-15"
     private TimeSlot selectedSlot;         // Khung giờ đã chọn
     private final List<Service> selectedServices = new ArrayList<>();  // Dịch vụ đã chọn
+    private long servicesGeneration;
+    private final androidx.lifecycle.SavedStateHandle savedState;
+    private final androidx.lifecycle.Observer<Resource<List<TimeSlot>>> slotsObserver = resource -> {
+        String wanted = savedSlotId();
+        selectedSlot = null;
+        if (resource != null && resource.isSuccess() && resource.data != null) {
+            for (TimeSlot slot : resource.data) {
+                if (slot.isAvailable() && wanted != null && wanted.equals(slot.getSlotId())) selectedSlot = slot;
+            }
+            if (selectedSlot == null) savedStateRemoveSlot();
+        }
+        recalculateTotal();
+    };
+
+    private String savedSlotId() { return savedState.get("slotId"); }
+    private void savedStateRemoveSlot() { savedState.remove("slotId"); }
     private double totalAmount = 0;
 
     // Number formatter để hiển thị VND
     private final NumberFormat currencyFormatter =
             NumberFormat.getNumberInstance(new Locale("vi", "VN"));
 
-    public BookingViewModel() {
-        bookingRepository = BookingRepository.getInstance();
+    public BookingViewModel(androidx.lifecycle.SavedStateHandle savedState) {
+        this.savedState = savedState;
+        bookingRepository = BookingRepository.createScoped();
         // Mặc định chọn ngày hôm nay
-        selectedDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                .format(new Date());
+        selectedDate = savedState.get("date");
+        String today = bookingDateFormat().format(new Date());
+        if (selectedDate == null || selectedDate.compareTo(today) < 0) {
+            selectedDate = today;
+            savedStateRemoveSlot();
+            savedState.remove("serviceIds");
+        }
+        savedState.set("date", selectedDate);
+        availableSlots.observeForever(slotsObserver);
     }
 
     private final MutableLiveData<Resource<List<Service>>> servicesLiveData = new MutableLiveData<>();
@@ -131,6 +155,20 @@ public class BookingViewModel extends ViewModel {
         this.currentUser = user;
     }
 
+    /** Preselects a date/slot coming from the availability browser. */
+    public void preselectDateAndSlot(String date, String slotId) {
+        if (date == null || date.trim().isEmpty()) return;
+        String today = bookingDateFormat().format(new Date());
+        if (date.compareTo(today) < 0) return;
+        selectedDate = date;
+        savedState.set("date", date);
+        if (slotId == null || slotId.trim().isEmpty()) {
+            savedStateRemoveSlot();
+        } else {
+            savedState.set("slotId", slotId);
+        }
+    }
+
     public void initBooking(Pitch pitch, User user) {
         this.selectedPitch = pitch;
         this.currentUser   = user;
@@ -145,82 +183,135 @@ public class BookingViewModel extends ViewModel {
 
     /** Tải danh sách dịch vụ đi kèm */
     public void loadServices() {
+        final long generation = ++servicesGeneration;
         servicesLiveData.setValue(Resource.loading(null));
         com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 .collection(Constants.COL_SERVICES)
                 .whereEqualTo("isActive", true)
                 .get()
                 .addOnSuccessListener(snapshot -> {
+                    if (generation != servicesGeneration) return;
                     List<Service> services = new ArrayList<>();
                     if (snapshot != null && !snapshot.isEmpty()) {
                         services = snapshot.toObjects(Service.class);
                     }
-                    if (services.isEmpty()) {
-                        // Cung cấp dịch vụ mặc định nếu chưa seed
-                        services.add(new Service("svc_1", "Thuê bóng", 30000, "Bóng thi đấu tiêu chuẩn", "quả", true));
-                        services.add(new Service("svc_2", "Bộ áo đấu (10 áo)", 100000, "Bộ 10 áo 2 màu phân biệt", "bộ", true));
-                        services.add(new Service("svc_3", "Nước khoáng đóng chai", 50000, "Thùng 12 chai nước 500ml", "thùng", true));
+                    for (int i = 0; i < services.size(); i++) {
+                        services.get(i).setServiceId(snapshot.getDocuments().get(i).getId());
                     }
+                    List<Service> refreshedSelection = new ArrayList<>();
+                    java.util.ArrayList<String> ids = savedState.get("serviceIds");
+                    for (Service service : services) {
+                        if (isServiceSelected(service) || (ids != null && ids.contains(service.getServiceId()))) refreshedSelection.add(service);
+                    }
+                    selectedServices.clear();
+                    selectedServices.addAll(refreshedSelection);
+                    saveServices();
+                    recalculateTotal();
                     servicesLiveData.setValue(Resource.success(services));
                 })
                 .addOnFailureListener(e -> {
-                    List<Service> services = new ArrayList<>();
-                    services.add(new Service("svc_1", "Thuê bóng", 30000, "Bóng thi đấu tiêu chuẩn", "quả", true));
-                    services.add(new Service("svc_2", "Bộ áo đấu (10 áo)", 100000, "Bộ 10 áo 2 màu phân biệt", "bộ", true));
-                    services.add(new Service("svc_3", "Nước khoáng đóng chai", 50000, "Thùng 12 chai nước 500ml", "thùng", true));
-                    servicesLiveData.setValue(Resource.success(services));
+                    if (generation != servicesGeneration) return;
+                    servicesLiveData.setValue(Resource.error("Không thể tải dịch vụ: " + e.getMessage(), null));
                 });
     }
 
     /** Gọi khi user chọn ngày mới từ CalendarView */
     public void onDateSelected(long dateMillis) {
-        selectedDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                .format(new Date(dateMillis));
+        String nextDate = bookingDateFormat().format(new Date(dateMillis));
+        if (nextDate.equals(selectedDate)) return;
+        selectedDate = nextDate;
+        savedState.set("date", selectedDate);
+        savedStateRemoveSlot();
         selectedSlot = null;         // Reset slot khi đổi ngày
         selectedServices.clear();    // Reset services
+        saveServices();
         recalculateTotal();
         loadSlotsForDate(selectedDate);
     }
 
     /** Gọi khi user chọn/bỏ chọn 1 khung giờ */
     public void onSlotSelected(TimeSlot slot) {
+        Resource<List<TimeSlot>> latest = availableSlots.getValue();
+        if (slot == null || !slot.isAvailable() || latest == null || !latest.isSuccess()
+                || latest.data == null || !latest.data.contains(slot)) return;
         if (slot.equals(selectedSlot)) {
             selectedSlot = null; // Toggle bỏ chọn
         } else {
             selectedSlot = slot;
         }
+        savedState.set("slotId", selectedSlot == null ? null : selectedSlot.getSlotId());
         recalculateTotal();
     }
 
     /** Toggle service: thêm nếu chưa có, bỏ nếu đã có */
     public void toggleService(Service service, boolean isChecked) {
+        if (service == null || service.getServiceId() == null) return;
+        // Firestore reloads create new objects: identity is the document ID.
+        selectedServices.removeIf(selected -> service.getServiceId().equals(selected.getServiceId()));
         if (isChecked) {
-            if (!selectedServices.contains(service)) selectedServices.add(service);
-        } else {
-            selectedServices.remove(service);
+            selectedServices.add(service);
         }
+        saveServices();
         recalculateTotal();
+    }
+
+    private void saveServices() {
+        java.util.ArrayList<String> ids = new java.util.ArrayList<>();
+        for (Service service : selectedServices) ids.add(service.getServiceId());
+        savedState.set("serviceIds", ids);
+    }
+
+    public boolean isServiceSelected(Service service) {
+        if (service == null || service.getServiceId() == null) return false;
+        for (Service selected : selectedServices) {
+            if (service.getServiceId().equals(selected.getServiceId())) return true;
+        }
+        return false;
     }
 
     /** Kiểm tra xem booking có thể xác nhận không */
     public boolean canConfirmBooking() {
-        return selectedPitch != null
-                && selectedDate != null
-                && selectedSlot != null
-                && currentUser != null;
+        return getConfirmationError() == null;
+    }
+
+    public String getConfirmationError() {
+        Resource<Booking> creation = createBookingResult.getValue();
+        if (creation != null && creation.isLoading()) return "Đơn đang được gửi. Vui lòng chờ.";
+        if (creation != null && creation.isSuccess()) return "Đơn đã được tạo. Hãy kiểm tra lịch sử đặt sân.";
+        if (selectedPitch == null) return "Chưa tải được thông tin sân. Vui lòng mở lại màn hình.";
+        if (selectedPitch.getBookingPolicyVersion() != 2) return "Lịch sân chưa được kiểm tra để mở đặt chỗ. Vui lòng liên hệ quản trị viên chuẩn bị lịch sân.";
+        if (currentUser == null) return "Chưa tải được hồ sơ tài khoản. Vui lòng đăng nhập lại.";
+        Resource<List<Service>> services = servicesLiveData.getValue();
+        if (services == null || services.isLoading()) return "Đang tải dịch vụ. Vui lòng chờ.";
+        if (services.isError()) return "Không tải được dịch vụ. Vui lòng mở lại màn hình để thử lại.";
+        if (selectedDate == null || selectedSlot == null || !selectedSlot.isAvailable()) return "Vui lòng chọn một khung giờ còn trống.";
+        return null;
     }
 
     /** Tạo đơn đặt sân với phương thức thanh toán chỉ định */
     public void confirmBooking(String note, String paymentMethod) {
-        if (!canConfirmBooking()) return;
+        Resource<Booking> previous = createBookingResult.getValue();
+        if (previous != null && (previous.isLoading() || previous.isSuccess())) return;
+        String error = getConfirmationError();
+        if (error != null) {
+            createBookingResult.setValue(Resource.error(error, null));
+            return;
+        }
+        if (!Constants.METHOD_CASH.equals(paymentMethod)
+                && !Constants.METHOD_PAYOS.equals(paymentMethod)
+                && !Constants.METHOD_VNPAY.equals(paymentMethod)
+                && !Constants.METHOD_PAY_LATER.equals(paymentMethod)) {
+            createBookingResult.setValue(Resource.error("Phương thức thanh toán không hợp lệ", null));
+            return;
+        }
 
         Booking booking = buildBookingObject(note, paymentMethod);
         bookingRepository.createBooking(booking, selectedPitch, createBookingResult);
     }
 
-    /** Tạo đơn đặt sân (mặc định VNPay) */
+    /** Tạo đơn đặt sân (mặc định PayOS VietQR) */
     public void confirmBooking(String note) {
-        confirmBooking(note, Constants.METHOD_VNPAY);
+        confirmBooking(note, Constants.METHOD_PAYOS);
     }
 
     /** Load lịch sử đặt sân của user hiện tại */
@@ -338,25 +429,33 @@ public class BookingViewModel extends ViewModel {
         booking.setTotalAmount(totalAmount);
 
         // Payment Method & Note
-        booking.setPaymentMethod(paymentMethod != null ? paymentMethod : Constants.METHOD_VNPAY);
+        booking.setPaymentMethod(paymentMethod != null ? paymentMethod : Constants.METHOD_PAYOS);
         booking.setNote(note != null ? note : "");
 
         return booking;
     }
 
     private Booking buildBookingObject(String note) {
-        return buildBookingObject(note, Constants.METHOD_VNPAY);
+        return buildBookingObject(note, Constants.METHOD_PAYOS);
     }
 
     /** Kiểm tra đã qua giờ thi đấu chưa */
     private boolean isPastMatchTime(Booking booking) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+            sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+            sdf.setLenient(false);
             Date matchDateTime = sdf.parse(booking.getBookingDate() + " " + booking.getStartTime());
             return matchDateTime != null && new Date().after(matchDateTime);
         } catch (Exception e) {
-            return false; // Nếu parse lỗi, cho phép hủy
+            return true;
         }
+    }
+
+    private static SimpleDateFormat bookingDateFormat() {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        format.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+        return format;
     }
 
     public void detachSlotsListener() {
@@ -367,6 +466,8 @@ public class BookingViewModel extends ViewModel {
 
     @Override
     protected void onCleared() {
+        availableSlots.removeObserver(slotsObserver);
+        servicesGeneration++;
         super.onCleared();
         detachSlotsListener();
         bookingRepository.detachBookingListListener();

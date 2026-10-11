@@ -22,6 +22,7 @@ public class AdminUserManagementFragment extends Fragment {
     private FragmentAdminUserManagementBinding binding;
     private AdminViewModel viewModel;
     private AdminUserAdapter adapter;
+    private androidx.appcompat.app.AlertDialog approvalDialog;
 
     @Nullable
     @Override
@@ -47,12 +48,30 @@ public class AdminUserManagementFragment extends Fragment {
     private void setupRecyclerView() {
         adapter = new AdminUserAdapter(requireContext(), (user, newStatus) -> {
             viewModel.updateUserStatus(user.getUid(), newStatus);
+        }, user -> {
+            if (approvalDialog != null && approvalDialog.isShowing()) return;
+            approvalDialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Duyệt tài khoản chủ sân?")
+                    .setMessage("Cấp quyền quản lý sân cho " + user.getDisplayName() + " (" + user.getEmail() + ").")
+                    .setPositiveButton("Duyệt", (dialog, which) -> viewModel.approveOwner(user.getUid()))
+                    .setNegativeButton("Để sau", null)
+                    .show();
         });
         binding.rvUsers.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.rvUsers.setAdapter(adapter);
     }
 
     private void observeViewModel() {
+        viewModel.getOwnerApprovalResult().observe(getViewLifecycleOwner(), resource -> {
+            if (resource == null) return;
+            adapter.setApprovalInProgress(resource.isLoading());
+            if (!resource.isLoading()) {
+                Toast.makeText(requireContext(), resource.isSuccess()
+                        ? "Đã duyệt tài khoản chủ sân" : "Duyệt thất bại: " + resource.message,
+                        Toast.LENGTH_LONG).show();
+                viewModel.clearOwnerApprovalResult();
+            }
+        });
         viewModel.getAllUsers().observe(getViewLifecycleOwner(), resource -> {
             if (resource == null) return;
             switch (resource.status) {
@@ -86,6 +105,9 @@ public class AdminUserManagementFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        if (approvalDialog != null) approvalDialog.dismiss();
+        approvalDialog = null;
+        binding.rvUsers.setAdapter(null);
         super.onDestroyView();
         binding = null;
     }

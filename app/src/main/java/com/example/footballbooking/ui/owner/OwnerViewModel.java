@@ -147,7 +147,7 @@ public class OwnerViewModel extends ViewModel {
         if (bookings == null) return new ArrayList<>();
         Map<Integer, Double> dailyRevenue = new HashMap<>();
         for (Booking b : bookings) {
-            if (b.getBookingDate() == null) continue;
+            if (!isRevenueBooking(b)) continue;
             try {
                 int day = Integer.parseInt(b.getBookingDate().split("-")[2]);
                 dailyRevenue.put(day, dailyRevenue.getOrDefault(day, 0.0) + b.getTotalAmount());
@@ -161,10 +161,14 @@ public class OwnerViewModel extends ViewModel {
         return entries;
     }
 
+    private boolean isRevenueBooking(Booking b) {
+        return com.example.footballbooking.utils.RevenuePolicy.includes(b, currentReportMonth);
+    }
+
     public double calcTotalRevenue(List<Booking> bookings) {
         if (bookings == null) return 0;
         double total = 0;
-        for (Booking b : bookings) total += b.getTotalAmount();
+        for (Booking b : bookings) if (isRevenueBooking(b)) total += b.getTotalAmount();
         return total;
     }
 

@@ -52,8 +52,9 @@ public class AdminBookingFragment extends Fragment {
         setupRecyclerView();
         setupTabs();
         // Tự động từ chối đơn quá hạn trước khi tải danh sách
+        final FragmentAdminBookingBinding currentBinding = binding;
         BookingExpiryWorker.autoRejectExpiredBookings(() -> {
-            if (isAdded() && adminViewModel != null) {
+            if (binding == currentBinding && isAdded() && adminViewModel != null) {
                 observeViewModel();
                 adminViewModel.loadAllBookings();
             }

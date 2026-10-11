@@ -39,8 +39,11 @@ public class AdminRepository {
     // SYSTEM DASHBOARD (KPIs)
     // ============================================================
 
+    private long reportGeneration;
+
     public void getBookingsByMonth(String yearMonth,
                                    MutableLiveData<Resource<List<Booking>>> result) {
+        final long generation = ++reportGeneration;
         result.setValue(Resource.loading(null));
 
         String startDate = yearMonth + "-01";
@@ -49,12 +52,13 @@ public class AdminRepository {
         mDb.collection(Constants.COL_BOOKINGS)
                 .whereGreaterThanOrEqualTo("bookingDate", startDate)
                 .whereLessThanOrEqualTo("bookingDate", endDate)
-                .whereEqualTo("bookingStatus", Constants.STATUS_APPROVED)
                 .get()
-                .addOnSuccessListener(snap ->
-                        result.setValue(Resource.success(snap.toObjects(Booking.class))))
-                .addOnFailureListener(e ->
-                        result.setValue(Resource.error(e.getMessage(), null)));
+                .addOnSuccessListener(snap -> {
+                    if (generation == reportGeneration) result.setValue(Resource.success(snap.toObjects(Booking.class)));
+                })
+                .addOnFailureListener(e -> {
+                    if (generation == reportGeneration) result.setValue(Resource.error(e.getMessage(), null));
+                });
     }
 
     // ============================================================
@@ -74,6 +78,11 @@ public class AdminRepository {
                     }
                     List<User> users = snapshots != null
                             ? snapshots.toObjects(User.class) : null;
+                    if (users != null) {
+                        for (int i = 0; i < users.size(); i++) {
+                            users.get(i).setUid(snapshots.getDocuments().get(i).getId());
+                        }
+                    }
                     result.setValue(Resource.success(users));
                 });
     }
@@ -88,6 +97,26 @@ public class AdminRepository {
                 .update("status", status)
                 .addOnSuccessListener(aVoid -> result.setValue(Resource.success(true)))
                 .addOnFailureListener(e -> result.setValue(Resource.error(e.getMessage(), false)));
+    }
+
+    public void approveOwner(String userId, MutableLiveData<Resource<Boolean>> result) {
+        if (userId == null || userId.isEmpty()) {
+            result.setValue(Resource.error("User ID không hợp lệ", false));
+            return;
+        }
+        result.setValue(Resource.loading(null));
+        com.google.firebase.firestore.DocumentReference ref = mDb.collection(Constants.COL_USERS).document(userId);
+        mDb.runTransaction(tx -> {
+            com.google.firebase.firestore.DocumentSnapshot profile = tx.get(ref);
+            if (!profile.exists() || !Constants.ROLE_OWNER_PENDING.equals(profile.getString("role"))
+                    || !Constants.STATUS_ACTIVE.equals(profile.getString("status"))) {
+                throw new IllegalStateException("Tài khoản đã thay đổi hoặc đang bị khóa. Vui lòng tải lại danh sách.");
+            }
+            tx.update(ref, "role", Constants.ROLE_OWNER,
+                    "updatedAt", com.google.firebase.firestore.FieldValue.serverTimestamp());
+            return true;
+        }).addOnSuccessListener(value -> result.setValue(Resource.success(value)))
+          .addOnFailureListener(e -> result.setValue(Resource.error(e.getMessage(), false)));
     }
 
     // ============================================================

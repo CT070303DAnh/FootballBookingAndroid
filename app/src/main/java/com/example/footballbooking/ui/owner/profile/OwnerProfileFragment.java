@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.example.footballbooking.data.model.User;
 import com.example.footballbooking.databinding.FragmentOwnerProfileBinding;
 import com.example.footballbooking.ui.owner.OwnerViewModel;
+import com.example.footballbooking.utils.Constants;
 import com.google.firebase.auth.FirebaseAuth;
 
 /**
@@ -47,8 +48,21 @@ public class OwnerProfileFragment extends Fragment {
 
         binding.tvOwnerProfileName.setText(owner.getDisplayName());
         binding.tvOwnerProfileEmail.setText(owner.getEmail());
-        binding.tvOwnerProfilePhone.setText(owner.getPhoneNumber());
+        binding.tvOwnerProfilePhone.setText(valueOrFallback(
+                owner.getPhoneNumber(), "Chưa cập nhật"));
+
+        String bankName = valueOrFallback(owner.getBankName(),
+                Constants.DEFAULT_OWNER_BANK_NAME);
+        String accountNumber = valueOrFallback(owner.getBankAccountNumber(),
+                Constants.normalizeOwnerBankAccount(owner.getPhoneNumber()));
+        binding.tvOwnerProfileBank.setText(bankName);
+        binding.tvOwnerProfileBankAccount.setText(valueOrFallback(
+                accountNumber, "Chưa cập nhật"));
         binding.chipOwnerStatus.setText("✓ Chủ sân đã xác minh");
+    }
+
+    private String valueOrFallback(String value, String fallback) {
+        return value == null || value.trim().isEmpty() ? fallback : value;
     }
 
     private void setupLogout() {

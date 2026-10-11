@@ -21,14 +21,23 @@ public class AdminUserAdapter extends RecyclerView.Adapter<AdminUserAdapter.User
     private final Context context;
     private List<User> userList = new ArrayList<>();
     private final OnUserStatusChangeListener listener;
+    private final java.util.function.Consumer<User> approvalListener;
+    private boolean approvalInProgress;
 
     public interface OnUserStatusChangeListener {
         void onStatusChange(User user, String newStatus);
     }
 
-    public AdminUserAdapter(Context context, OnUserStatusChangeListener listener) {
+    public AdminUserAdapter(Context context, OnUserStatusChangeListener listener, java.util.function.Consumer<User> approvalListener) {
         this.context = context;
         this.listener = listener;
+        this.approvalListener = approvalListener;
+    }
+
+    public void setApprovalInProgress(boolean inProgress) {
+        if (approvalInProgress == inProgress) return;
+        approvalInProgress = inProgress;
+        notifyDataSetChanged();
     }
 
     public void submitList(List<User> newList) {
@@ -86,6 +95,10 @@ public class AdminUserAdapter extends RecyclerView.Adapter<AdminUserAdapter.User
             }
 
             boolean isActive = Constants.STATUS_ACTIVE.equals(user.getStatus());
+            binding.btnApproveOwner.setVisibility(Constants.ROLE_OWNER_PENDING.equals(user.getRole())
+                    ? android.view.View.VISIBLE : android.view.View.GONE);
+            binding.btnApproveOwner.setEnabled(isActive && !approvalInProgress);
+            binding.btnApproveOwner.setOnClickListener(v -> approvalListener.accept(user));
             binding.tvUserStatus.setText(isActive ? "Active" : "Blocked");
             binding.tvUserStatus.setTextColor(isActive ? Color.parseColor("#4CAF50") : Color.parseColor("#F44336"));
 

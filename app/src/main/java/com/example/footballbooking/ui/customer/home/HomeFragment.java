@@ -113,7 +113,14 @@ public class HomeFragment extends Fragment implements PitchAdapter.OnPitchClickL
         });
     }
 
+    private Runnable searchRunnable;
+
     private void setupSearch() {
+        final com.example.footballbooking.databinding.FragmentHomeBinding currentBinding = binding;
+        searchRunnable = () -> {
+            if (binding != currentBinding) return;
+            pitchViewModel.searchPitches(currentBinding.etSearch.getText() == null ? "" : currentBinding.etSearch.getText().toString());
+        };
         binding.etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int i, int i1, int i2) {}
             @Override public void onTextChanged(CharSequence s, int i, int i1, int i2) {}
@@ -125,11 +132,7 @@ public class HomeFragment extends Fragment implements PitchAdapter.OnPitchClickL
                 binding.etSearch.postDelayed(searchRunnable, 500);
             }
 
-            private final Runnable searchRunnable = () -> {
-                String query = binding.etSearch.getText() != null
-                        ? binding.etSearch.getText().toString() : "";
-                pitchViewModel.searchPitches(query);
-            };
+
         });
     }
 
@@ -140,9 +143,9 @@ public class HomeFragment extends Fragment implements PitchAdapter.OnPitchClickL
         // AI banner → sang tab AI
         binding.btnViewAi.setOnClickListener(v -> navigateToTab(R.id.nav_ai));
 
-        // FAB đặt sân nhanh
+        // Tìm sân theo ngày và khung giờ cố định.
         binding.fabQuickBook.setOnClickListener(v ->
-                Snackbar.make(v, "Chọn sân để đặt!", Snackbar.LENGTH_SHORT).show()
+            Navigation.findNavController(requireView()).navigate(R.id.nav_availability)
         );
     }
 
@@ -223,13 +226,15 @@ public class HomeFragment extends Fragment implements PitchAdapter.OnPitchClickL
     }
 
     private void fetchUserLocation() {
+        if (binding == null || !isAdded()) return;
         if (ContextCompat.checkSelfPermission(requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+        final com.example.footballbooking.databinding.FragmentHomeBinding currentBinding = binding;
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
                 .addOnSuccessListener(location -> {
-                    if (location != null) {
+                    if (binding == currentBinding && currentBinding != null && location != null) {
                         // Truyền location cho Adapter để hiển thị khoảng cách
                         pitchAdapter.setUserLocation(location);
                     }
@@ -278,6 +283,9 @@ public class HomeFragment extends Fragment implements PitchAdapter.OnPitchClickL
 
     @Override
     public void onDestroyView() {
+        binding.etSearch.removeCallbacks(searchRunnable);
+        binding.shimmerPitches.stopShimmer();
+        binding.rvPitches.setAdapter(null);
         super.onDestroyView();
         binding = null; // Tránh memory leak — ViewBinding giữ reference đến View
     }

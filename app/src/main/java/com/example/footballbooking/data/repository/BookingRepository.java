@@ -11,7 +11,6 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
-import com.google.firebase.firestore.WriteBatch;
 
 import java.util.HashMap;
 import java.util.List;
@@ -36,8 +35,14 @@ public class BookingRepository {
 
     private final FirebaseFirestore mDb;
     private ListenerRegistration bookingListListener;
+    private long historyGeneration;
+    private long slotsGeneration;
+    private long availabilityGeneration;
 
     private static BookingRepository instance;
+
+    /** A ViewModel owns this instance and its listeners. */
+    public static BookingRepository createScoped() { return new BookingRepository(); }
 
     private BookingRepository() {
         mDb = FirebaseFirestore.getInstance();
@@ -52,211 +57,217 @@ public class BookingRepository {
     // TẠO ĐƠN ĐẶT SÂN
     // ============================================================
 
-    /**
-     * Tạo booking mới với Firestore WriteBatch (atomic).
-     * Đảm bảo availability được cập nhật đồng thời với booking.
-     *
-     * QUAN TRỌNG: Luôn truyền Pitch object để lấy ownerId.
-     * pitchOwnerId được denormalize vào Booking để Owner có thể query
-     * đơn đặt trên sân của mình mà không cần JOIN.
-     *
-     * @param booking  Object đã được điền đầy đủ từ BookingViewModel
-     * @param pitch    Pitch object để lấy ownerId, ownerName
-     * @param result   LiveData nhận kết quả
-     */
+    /** Read the shared day document inside a transaction; competing bookings retry. */
     public void createBooking(Booking booking, Pitch pitch,
                               MutableLiveData<Resource<Booking>> result) {
-        if (booking == null || pitch == null || pitch.getPitchId() == null || booking.getBookingDate() == null) {
+        if (booking == null || pitch == null || pitch.getPitchId() == null
+                || booking.getBookingDate() == null || booking.getSlotId() == null
+                || booking.getCustomerId() == null || booking.getServices() == null
+                || booking.getStartTime() == null || booking.getEndTime() == null) {
             result.setValue(Resource.error("Dữ liệu đặt sân không hợp lệ", null));
             return;
         }
-        result.setValue(Resource.loading(null));
-
-        // 1. Kiểm tra ngày/giờ xem đã quá hạn chưa (chỉ quá hạn khi endTime đã trôi qua)
-        String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(new java.util.Date());
-        String currentTimeStr = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(new java.util.Date());
-        boolean isPastDate = booking.getBookingDate().compareTo(todayStr) < 0;
-        String compareTime = booking.getEndTime() != null ? booking.getEndTime() : booking.getStartTime();
-        boolean isPastTime = booking.getBookingDate().equals(todayStr)
-                && compareTime != null
-                && compareTime.compareTo(currentTimeStr) <= 0;
-
-        if (isPastDate || isPastTime) {
-            result.setValue(Resource.error("Khung giờ này đã quá thời gian, không thể đặt!", null));
+        if (booking.getServices().size() > 5) {
+            result.setValue(Resource.error("Mỗi đơn hỗ trợ tối đa 5 dịch vụ", null));
             return;
         }
-
-        // 2. Kiểm tra xem chính người dùng này đã đặt khung giờ này trong ngày chưa (tránh trùng đơn)
-        if (booking.getCustomerId() != null && !booking.getCustomerId().isEmpty()) {
-            mDb.collection(Constants.COL_BOOKINGS)
-                    .whereEqualTo("customerId", booking.getCustomerId())
-                    .whereEqualTo("bookingDate", booking.getBookingDate())
-                    .get()
-                    .addOnSuccessListener(userSnapshot -> {
-                        boolean userAlreadyBooked = false;
-                        if (userSnapshot != null) {
-                            for (com.google.firebase.firestore.DocumentSnapshot doc : userSnapshot.getDocuments()) {
-                                String status = doc.getString("bookingStatus");
-                                String docSlotId = doc.getString("slotId");
-                                String docStartTime = doc.getString("startTime");
-
-                                boolean isSameSlot = (booking.getSlotId() != null && booking.getSlotId().equals(docSlotId))
-                                        || (booking.getStartTime() != null && booking.getStartTime().equals(docStartTime));
-
-                                if (isSameSlot && status != null
-                                        && !Constants.STATUS_CANCELLED.equals(status)
-                                        && !Constants.STATUS_REJECTED.equals(status)) {
-                                    userAlreadyBooked = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (userAlreadyBooked) {
-                            result.setValue(Resource.error("Bạn đã đặt sân vào khung giờ này rồi! Không thể tạo đơn trùng lặp.", null));
+        result.setValue(Resource.loading(null));
+        // Preserve the existing cross-pitch duplicate check; a failed read stops booking.
+        mDb.collection(Constants.COL_BOOKINGS)
+                .whereEqualTo("customerId", booking.getCustomerId())
+                .whereEqualTo("bookingDate", booking.getBookingDate()).get(com.google.firebase.firestore.Source.SERVER)
+                .addOnSuccessListener(snapshot -> {
+                    for (com.google.firebase.firestore.DocumentSnapshot doc : snapshot) {
+                        if (isOccupied(doc.getString("bookingStatus"))
+                                && (booking.getSlotId().equals(doc.getString("slotId"))
+                                || booking.getStartTime().equals(doc.getString("startTime")))) {
+                            result.setValue(Resource.error("Bạn đã đặt sân vào khung giờ này rồi", null));
                             return;
                         }
-
-                        // Tiếp tục kiểm tra xem sân có bị người khác đặt không
-                        checkPitchSlotAndExecuteBatch(booking, pitch, result);
-                    })
-                    .addOnFailureListener(e -> {
-                        // Nếu lỗi query đơn của user, vẫn chuyển sang bước kiểm tra sân
-                        checkPitchSlotAndExecuteBatch(booking, pitch, result);
-                    });
-        } else {
-            checkPitchSlotAndExecuteBatch(booking, pitch, result);
-        }
-    }
-
-    private void checkPitchSlotAndExecuteBatch(Booking booking, Pitch pitch,
-                                                MutableLiveData<Resource<Booking>> result) {
-        mDb.collection(Constants.COL_BOOKINGS)
-                .whereEqualTo("pitchId", pitch.getPitchId())
-                .whereEqualTo("bookingDate", booking.getBookingDate())
-                .get()
-                .addOnSuccessListener(snapshot -> {
-                    boolean isBooked = false;
-                    if (snapshot != null) {
-                        for (com.google.firebase.firestore.DocumentSnapshot doc : snapshot.getDocuments()) {
-                            String status = doc.getString("bookingStatus");
-                            String docSlotId = doc.getString("slotId");
-                            String docStartTime = doc.getString("startTime");
-
-                            boolean isSameSlot = (booking.getSlotId() != null && booking.getSlotId().equals(docSlotId))
-                                    || (booking.getStartTime() != null && booking.getStartTime().equals(docStartTime));
-
-                            if (isSameSlot && status != null
-                                    && !Constants.STATUS_CANCELLED.equals(status)
-                                    && !Constants.STATUS_REJECTED.equals(status)) {
-                                isBooked = true;
-                                break;
-                            }
-                        }
                     }
-
-                    if (isBooked) {
-                        result.setValue(Resource.error("Khung giờ này đã có người khác đặt. Vui lòng chọn khung giờ khác!", null));
-                        return;
-                    }
-
-                    // Nếu hợp lệ -> thực hiện WriteBatch
-                    executeBookingWriteBatch(booking, pitch, result);
+                    createBookingTransaction(booking, pitch.getPitchId(), result);
                 })
-                .addOnFailureListener(e -> {
-                    // Nếu lỗi query (ví dụ mất mạng/timeout), vẫn tiến hành đặt sân
-                    executeBookingWriteBatch(booking, pitch, result);
-                });
+                .addOnFailureListener(e -> result.setValue(Resource.error("Không thể kiểm tra lịch: " + e.getMessage(), null)));
     }
 
-    private void executeBookingWriteBatch(Booking booking, Pitch pitch,
+    private void createBookingTransaction(Booking booking, String pitchId,
                                           MutableLiveData<Resource<Booking>> result) {
-        // Auto-generate bookingId
-        String bookingId = mDb.collection(Constants.COL_BOOKINGS).document().getId();
-        booking.setBookingId(bookingId);
-        booking.setBookingStatus(Constants.STATUS_PENDING);
-        booking.setMatchStatus(Constants.MATCH_UPCOMING);
-        booking.setPaymentStatus(Constants.PAYMENT_UNPAID);
-
-        // ★ GẮN OWNER ID — chìa khóa cho Marketplace model
-        booking.setPitchOwnerId(pitch.getOwnerId());
-
-        // Dùng WriteBatch để ghi nhiều document cùng lúc (atomic)
-        WriteBatch batch = mDb.batch();
-
-        // 1. Tạo booking document
-        batch.set(mDb.collection(Constants.COL_BOOKINGS).document(bookingId), booking);
-
-        // 2. Cập nhật availability của sân (khóa slot lại, trạng thái "pending")
-        Map<String, Object> slotDetails = new HashMap<>();
-        slotDetails.put("status", Constants.STATUS_PENDING);
-        slotDetails.put("bookingId", bookingId);
-
-        Map<String, Object> slotsMap = new HashMap<>();
-        slotsMap.put(booking.getSlotId(), slotDetails);
-
-        Map<String, Object> dateSlotUpdate = new HashMap<>();
-        dateSlotUpdate.put("date", booking.getBookingDate());
-        dateSlotUpdate.put("slots", slotsMap);
-
-        batch.set(
-                mDb.collection(Constants.COL_PITCHES)
-                   .document(pitch.getPitchId())
-                   .collection(Constants.SUB_AVAILABILITY)
-                   .document(booking.getBookingDate()),
-                dateSlotUpdate,
-                com.google.firebase.firestore.SetOptions.merge()
-        );
-
-        // 3. Lưu bookingId vào bookingHistory của user
-        if (booking.getCustomerId() != null) {
-            Map<String, String> historyRef = new HashMap<>();
-            historyRef.put("bookingRef", bookingId);
-            batch.set(
-                    mDb.collection(Constants.COL_USERS)
-                       .document(booking.getCustomerId())
-                       .collection(Constants.SUB_BOOKING_HISTORY)
-                       .document(bookingId),
-                    historyRef
-            );
-        }
-
-        // 4. ★ FCM queue — thông báo cho Owner có đơn mới
-        if (pitch != null && pitch.getOwnerId() != null && !pitch.getOwnerId().isEmpty()) {
+        com.google.firebase.firestore.DocumentReference bookingRef = mDb.collection(Constants.COL_BOOKINGS).document();
+        com.google.firebase.firestore.DocumentReference pitchRef = mDb.collection(Constants.COL_PITCHES).document(pitchId);
+        com.google.firebase.firestore.DocumentReference dayRef = pitchRef.collection(Constants.SUB_AVAILABILITY)
+                .document(booking.getBookingDate());
+        com.google.firebase.firestore.DocumentReference notificationRef = mDb.collection("fcm_queue").document();
+        mDb.runTransaction(tx -> {
+            if (!startsInFuture(booking)) throw new IllegalStateException("Khung giờ đã bắt đầu, không thể đặt");
+            com.google.firebase.firestore.DocumentSnapshot pitchDoc = tx.get(pitchRef);
+            com.google.firebase.firestore.DocumentSnapshot slotDoc = tx.get(pitchRef.collection(Constants.SUB_TIME_SLOTS).document(booking.getSlotId()));
+            com.google.firebase.firestore.DocumentSnapshot day = tx.get(dayRef);
+            java.util.List<com.google.firebase.firestore.DocumentSnapshot> services = new java.util.ArrayList<>();
+            for (Map<String, Object> service : booking.getServices()) {
+                services.add(tx.get(mDb.collection(Constants.COL_SERVICES).document((String) service.get("serviceId"))));
+            }
+            Pitch currentPitch = pitchDoc.toObject(Pitch.class);
+            if (currentPitch == null || !Constants.PITCH_AVAILABLE.equals(currentPitch.getStatus())) {
+                throw new IllegalStateException("Sân không còn khả dụng");
+            }
+            if (currentPitch.getBookingPolicyVersion() != 2) {
+                throw new IllegalStateException("Lịch sân đang chờ kiểm tra dữ liệu. Vui lòng thử lại sau");
+            }
+            TimeSlot slot = slotDoc.exists() ? slotDoc.toObject(TimeSlot.class) : null;
+            if (!slotDoc.exists() && currentPitch.getUseDefaultSlots()) {
+                for (TimeSlot candidate : getDefaultTimeSlots()) {
+                    if (candidate.getSlotId().equals(booking.getSlotId())) slot = candidate;
+                }
+            }
+            if (slot == null || !slot.isActive()
+                    || !slot.getStartTime().equals(booking.getStartTime())
+                    || !slot.getEndTime().equals(booking.getEndTime())) {
+                throw new IllegalStateException("Khung giờ đã thay đổi. Vui lòng chọn lại");
+            }
+            if (!"available".equals(slotState(day, booking.getSlotId()).getOrDefault("status", "available"))) {
+                throw new IllegalStateException("Khung giờ vừa được người khác đặt");
+            }
+            double serviceTotal = 0;
+            for (int i = 0; i < services.size(); i++) {
+                com.google.firebase.firestore.DocumentSnapshot service = services.get(i);
+                Map<String, Object> selected = booking.getServices().get(i);
+                Double price = service.getDouble("price");
+                if (!service.exists() || !Boolean.TRUE.equals(service.getBoolean("isActive")) || price == null
+                        || !Double.isFinite(price) || price < 0
+                        || !(selected.get("price") instanceof Number)
+                        || price.doubleValue() != ((Number) selected.get("price")).doubleValue()
+                        || !java.util.Objects.equals(service.getString("name"), selected.get("serviceName"))) {
+                    throw new IllegalStateException("Dịch vụ hoặc giá đã thay đổi. Vui lòng chọn lại");
+                }
+                serviceTotal += price;
+            }
+            double surcharge = slot.isPeakHour() ? slot.getSurcharge() : 0;
+            double total = currentPitch.getBasePrice() + surcharge + serviceTotal;
+            if (!Double.isFinite(total) || currentPitch.getBasePrice() < 0 || surcharge < 0
+                    || booking.getBasePrice() != currentPitch.getBasePrice()
+                    || booking.getSurcharge() != surcharge || booking.getTotalServicePrice() != serviceTotal
+                    || booking.getTotalAmount() != total) {
+                throw new IllegalStateException("Giá đã thay đổi. Vui lòng tải lại trước khi xác nhận");
+            }
+            booking.setBookingId(bookingRef.getId());
+            booking.setPitchId(pitchId);
+            booking.setPitchOwnerId(currentPitch.getOwnerId());
+            booking.setPitchName(currentPitch.getName());
+            booking.setPitchAddress(currentPitch.getAddress());
+            booking.setPitchType(currentPitch.getType());
+            booking.setBookingStatus(Constants.STATUS_PENDING);
+            booking.setMatchStatus(Constants.MATCH_UPCOMING);
+            booking.setPaymentStatus(Constants.PAYMENT_UNPAID);
+            booking.setVnpayTransactionId(null);
+            booking.setPayosTransactionId(null);
+            booking.setAdminNote(null);
+            booking.setCreatedAt(null);
+            booking.setUpdatedAt(null);
+            tx.set(bookingRef, booking);
+            tx.set(dayRef, availabilityUpdate(booking, "pending", bookingRef.getId()), com.google.firebase.firestore.SetOptions.merge());
+            tx.set(mDb.collection(Constants.COL_USERS).document(booking.getCustomerId())
+                    .collection(Constants.SUB_BOOKING_HISTORY).document(bookingRef.getId()),
+                    java.util.Collections.singletonMap("bookingRef", bookingRef.getId()));
             Map<String, Object> fcm = new HashMap<>();
             fcm.put("type", "new_booking");
-            fcm.put("bookingId", bookingId);
+            fcm.put("bookingId", bookingRef.getId());
             fcm.put("customerId", booking.getCustomerId());
             fcm.put("customerName", booking.getCustomerName());
             fcm.put("pitchName", booking.getPitchName());
             fcm.put("time", booking.getStartTime());
             fcm.put("date", booking.getBookingDate());
-            fcm.put("ownerId", pitch.getOwnerId());
+            fcm.put("ownerId", booking.getPitchOwnerId());
             fcm.put("processed", false);
             fcm.put("createdAt", FieldValue.serverTimestamp());
-            batch.set(mDb.collection("fcm_queue").document(), fcm);
-        }
-
-        // Commit tất cả cùng lúc
-        batch.commit()
-                .addOnSuccessListener(unused ->
-                        result.setValue(Resource.success(booking))
-                )
-                .addOnFailureListener(e ->
-                        result.setValue(Resource.error(
-                                "Đặt sân thất bại: " + e.getMessage(), null))
-                );
+            tx.set(notificationRef, fcm);
+            return booking;
+        }).addOnSuccessListener(value -> result.setValue(Resource.success(value)))
+          .addOnFailureListener(e -> result.setValue(Resource.error("Đặt sân thất bại: " + e.getMessage(), null)));
     }
 
-    /**
-     * Overload cho backward compatibility — nếu không cần pitch info.
-     * Sẽ KHÔNG gắn pitchOwnerId (chỉ dùng khi Admin tự tạo đơn).
-     */
-    public void createBooking(Booking booking,
-                              MutableLiveData<Resource<Booking>> result) {
-        Pitch dummyPitch = new Pitch();
-        dummyPitch.setOwnerId("");
-        createBooking(booking, dummyPitch, result);
+    public void createBooking(Booking booking, MutableLiveData<Resource<Booking>> result) {
+        Pitch pitch = new Pitch();
+        pitch.setPitchId(booking != null ? booking.getPitchId() : null);
+        createBooking(booking, pitch, result);
+    }
+
+    private static boolean isOccupied(String status) {
+        return "pending".equals(status) || "approved".equals(status)
+                || "booked".equals(status) || "reserved".equals(status);
+    }
+
+    private static boolean startsInFuture(Booking booking) {
+        java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US);
+        format.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+        format.setLenient(false);
+        try {
+            java.util.Date start = format.parse(booking.getBookingDate() + " " + booking.getStartTime());
+            return start != null && start.after(new java.util.Date());
+        } catch (java.text.ParseException e) {
+            return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> slotState(com.google.firebase.firestore.DocumentSnapshot day, String slotId) {
+        Object slots = day.get("slots");
+        Object value = slots instanceof Map ? ((Map<?, ?>) slots).get(slotId) : null;
+        return value instanceof Map ? (Map<String, Object>) value : java.util.Collections.emptyMap();
+    }
+
+    private static Map<String, Object> availabilityUpdate(Booking booking, String status, String bookingId) {
+        Map<String, Object> state = new HashMap<>();
+        state.put("status", status);
+        state.put("bookingId", bookingId);
+        Map<String, Object> update = new HashMap<>();
+        update.put("date", booking.getBookingDate());
+        update.put("lastSlotId", booking.getSlotId());
+        update.put("slots", java.util.Collections.singletonMap(booking.getSlotId(), state));
+        return update;
+    }
+
+    /** Re-read the booking and lock so stale approval/cancellation cannot release a newer booking. */
+    public com.google.android.gms.tasks.Task<Void> transitionBooking(String bookingId, String target, String reason) {
+        com.google.firebase.firestore.DocumentReference ref = mDb.collection(Constants.COL_BOOKINGS).document(bookingId);
+        com.google.firebase.firestore.DocumentReference notificationRef = mDb.collection("fcm_queue").document();
+        return mDb.runTransaction(tx -> {
+            Booking current = tx.get(ref).toObject(Booking.class);
+            if (current == null) throw new IllegalStateException("Không tìm thấy đơn đặt sân");
+            current.setBookingId(bookingId);
+            com.google.firebase.firestore.DocumentReference dayRef = mDb.collection(Constants.COL_PITCHES)
+                    .document(current.getPitchId()).collection(Constants.SUB_AVAILABILITY).document(current.getBookingDate());
+            Map<String, Object> lock = slotState(tx.get(dayRef), current.getSlotId());
+            boolean cancelling = Constants.STATUS_CANCELLED.equals(target);
+            if (cancelling && !startsInFuture(current)) throw new IllegalStateException("Không thể hủy sau giờ thi đấu");
+            if ((!Constants.STATUS_PENDING.equals(current.getBookingStatus())
+                    && !(cancelling && Constants.STATUS_APPROVED.equals(current.getBookingStatus())))
+                    || !bookingId.equals(lock.get("bookingId")) || !isOccupied((String) lock.get("status"))) {
+                throw new IllegalStateException("Đơn hoặc lịch sân đã thay đổi. Vui lòng tải lại");
+            }
+            boolean approved = Constants.STATUS_APPROVED.equals(target);
+            if (!approved && !cancelling && !Constants.STATUS_REJECTED.equals(target)) {
+                throw new IllegalArgumentException("Trạng thái không hợp lệ");
+            }
+            Map<String, Object> update = new HashMap<>();
+            update.put("bookingStatus", target);
+            update.put("updatedAt", FieldValue.serverTimestamp());
+            if (Constants.STATUS_REJECTED.equals(target)) update.put("adminNote", reason == null ? "" : reason);
+            tx.update(ref, update);
+            tx.set(dayRef, availabilityUpdate(current, approved ? "booked" : "available", approved ? bookingId : null),
+                    com.google.firebase.firestore.SetOptions.merge());
+            if (approved) {
+                Map<String, Object> fcm = new HashMap<>();
+                fcm.put("type", Constants.NOTIF_BOOKING_APPROVED);
+                fcm.put("bookingId", bookingId);
+                fcm.put("customerId", current.getCustomerId());
+                fcm.put("pitchName", current.getPitchName());
+                fcm.put("time", current.getStartTime());
+                fcm.put("processed", false);
+                fcm.put("createdAt", FieldValue.serverTimestamp());
+                tx.set(notificationRef, fcm);
+            }
+            return null;
+        });
     }
 
     // ============================================================
@@ -271,11 +282,13 @@ public class BookingRepository {
                                       MutableLiveData<Resource<List<Booking>>> result) {
         result.setValue(Resource.loading(null));
         detachBookingListListener();
+        final long generation = historyGeneration;
 
         bookingListListener = mDb.collection(Constants.COL_BOOKINGS)
                 .whereEqualTo("customerId", customerId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .addSnapshotListener((snapshots, error) -> {
+                    if (generation != historyGeneration) return;
                     if (error != null) {
                         result.setValue(Resource.error(error.getMessage(), null));
                         return;
@@ -304,46 +317,9 @@ public class BookingRepository {
         }
         result.setValue(Resource.loading(null));
 
-        WriteBatch batch = mDb.batch();
-
-        // 1. Cập nhật bookingStatus = cancelled
-        Map<String, Object> bookingUpdate = new HashMap<>();
-        bookingUpdate.put("bookingStatus", Constants.STATUS_CANCELLED);
-
-        batch.update(
-                mDb.collection(Constants.COL_BOOKINGS).document(booking.getBookingId()),
-                bookingUpdate
-        );
-
-        // 2. Trả slot về "available"
-        Map<String, Object> slotDetails = new HashMap<>();
-        slotDetails.put("status", "available");
-        slotDetails.put("bookingId", null);
-
-        Map<String, Object> slotsMap = new HashMap<>();
-        slotsMap.put(booking.getSlotId(), slotDetails);
-
-        Map<String, Object> slotRestore = new HashMap<>();
-        slotRestore.put("date", booking.getBookingDate());
-        slotRestore.put("slots", slotsMap);
-
-        batch.set(
-                mDb.collection(Constants.COL_PITCHES)
-                   .document(booking.getPitchId())
-                   .collection(Constants.SUB_AVAILABILITY)
-                   .document(booking.getBookingDate()),
-                slotRestore,
-                com.google.firebase.firestore.SetOptions.merge()
-        );
-
-        batch.commit()
-                .addOnSuccessListener(unused ->
-                        result.setValue(Resource.success(true))
-                )
-                .addOnFailureListener(e ->
-                        result.setValue(Resource.error(
-                                "Hủy đơn thất bại: " + e.getMessage(), false))
-                );
+        transitionBooking(booking.getBookingId(), Constants.STATUS_CANCELLED, null)
+                .addOnSuccessListener(unused -> result.setValue(Resource.success(true)))
+                .addOnFailureListener(e -> result.setValue(Resource.error("Hủy đơn thất bại: " + e.getMessage(), false)));
     }
 
     // ============================================================
@@ -367,6 +343,8 @@ public class BookingRepository {
     private ListenerRegistration slotsListener;
 
     public void detachSlotsListener() {
+        slotsGeneration++;
+        availabilityGeneration++;
         if (slotsListener != null) {
             slotsListener.remove();
             slotsListener = null;
@@ -387,27 +365,44 @@ public class BookingRepository {
         result.setValue(Resource.loading(null));
 
         detachSlotsListener();
+        final long generation = slotsGeneration;
 
         // 1. Lấy danh sách khung giờ từ subcollection timeSlots của sân
         mDb.collection(Constants.COL_PITCHES)
            .document(pitchId)
            .collection(Constants.SUB_TIME_SLOTS)
-           .whereEqualTo("isActive", true)
            .get()
            .addOnSuccessListener(slotsSnapshot -> {
+               if (generation != slotsGeneration) return;
+               // Luôn dùng catalog slot cố định 90 phút. Dữ liệu Firestore chỉ
+               // được phép bật/tắt từng slot và thay surcharge, không được đổi
+               // start/end hoặc tạo khung giờ ngoài catalog.
                List<TimeSlot> slots = new java.util.ArrayList<>();
-               if (slotsSnapshot != null && !slotsSnapshot.isEmpty()) {
-                   slots = slotsSnapshot.toObjects(TimeSlot.class);
-                   for (int i = 0; i < slots.size(); i++) {
-                       if (slots.get(i).getSlotId() == null) {
-                           slots.get(i).setSlotId(slotsSnapshot.getDocuments().get(i).getId());
+               List<TimeSlot> fixedSlots = getDefaultTimeSlots();
+               if (slotsSnapshot == null || slotsSnapshot.isEmpty()) {
+                   slots = fixedSlots;
+               } else {
+                   for (TimeSlot fixedSlot : fixedSlots) {
+                       com.google.firebase.firestore.DocumentSnapshot doc = null;
+                       for (com.google.firebase.firestore.DocumentSnapshot candidate : slotsSnapshot) {
+                           if (fixedSlot.getSlotId().equals(candidate.getId())) {
+                               doc = candidate;
+                               break;
+                           }
                        }
-                   }
-               }
+                       if (doc == null || !Boolean.TRUE.equals(doc.getBoolean("isActive"))) continue;
+                       String start = doc.getString("startTime");
+                       String end = doc.getString("endTime");
+                       if (!fixedSlot.getStartTime().equals(start) || !fixedSlot.getEndTime().equals(end)) continue;
 
-               // Fallback: nếu chưa thiết lập khung giờ riêng, dùng khung giờ chuẩn
-               if (slots.isEmpty()) {
-                   slots = getDefaultTimeSlots();
+                       TimeSlot configured = doc.toObject(TimeSlot.class);
+                       if (configured == null) configured = fixedSlot;
+                       configured.setSlotId(fixedSlot.getSlotId());
+                       configured.setStartTime(fixedSlot.getStartTime());
+                       configured.setEndTime(fixedSlot.getEndTime());
+                       if (!doc.contains("surcharge")) configured.setSurcharge(fixedSlot.getSurcharge());
+                       slots.add(configured);
+                   }
                }
 
                // Sắp xếp theo startTime tăng dần
@@ -418,42 +413,19 @@ public class BookingRepository {
 
                final List<TimeSlot> baseSlots = slots;
 
-               // 2. Lắng nghe Realtime các đơn đặt (bookings) của sân trong ngày dateString
-               slotsListener = mDb.collection(Constants.COL_BOOKINGS)
-                  .whereEqualTo("pitchId", pitchId)
-                  .whereEqualTo("bookingDate", dateString)
-                  .addSnapshotListener((bookingsSnapshot, error) -> {
-                      if (error != null) {
-                          android.util.Log.e("BookingRepository", "Lỗi snapshot bookings: " + error.getMessage());
-                      }
-
-                      // Đọc đồng thời subcollection availability của sân trong ngày dateString
-                      mDb.collection(Constants.COL_PITCHES)
-                         .document(pitchId)
-                         .collection(Constants.SUB_AVAILABILITY)
-                         .document(dateString)
-                         .get()
-                         .addOnCompleteListener(availTask -> {
-                             java.util.Set<String> bookedSlotIds = new java.util.HashSet<>();
-                             java.util.Set<String> bookedStartTimes = new java.util.HashSet<>();
-
-                             // a. Lấy slot đã đặt từ COL_BOOKINGS
-                             if (bookingsSnapshot != null && !bookingsSnapshot.isEmpty()) {
-                                 for (com.google.firebase.firestore.DocumentSnapshot doc : bookingsSnapshot.getDocuments()) {
-                                     String status = doc.getString("bookingStatus");
-                                     if (!Constants.STATUS_CANCELLED.equals(status)
-                                             && !Constants.STATUS_REJECTED.equals(status)) {
-                                         String slotId = doc.getString("slotId");
-                                         String startTime = doc.getString("startTime");
-                                         if (slotId != null && !slotId.trim().isEmpty()) bookedSlotIds.add(slotId.trim());
-                                         if (startTime != null && !startTime.trim().isEmpty()) bookedStartTimes.add(startTime.trim());
-                                     }
-                                 }
-                             }
-
+               // Availability contains slot locks without exposing customer bookings.
+               slotsListener = mDb.collection(Constants.COL_PITCHES).document(pitchId)
+                   .collection(Constants.SUB_AVAILABILITY).document(dateString)
+                   .addSnapshotListener((availDoc, error) -> {
+                       if (generation != slotsGeneration) return;
+                       if (error != null) {
+                           result.setValue(Resource.error("Cannot load availability", null));
+                           return;
+                       }
+                       java.util.Set<String> bookedSlotIds = new java.util.HashSet<>();
+                       java.util.Set<String> bookedStartTimes = new java.util.HashSet<>();
                              // b. Lấy slot đã đặt từ subcollection availability
-                             if (availTask.isSuccessful() && availTask.getResult() != null && availTask.getResult().exists()) {
-                                 com.google.firebase.firestore.DocumentSnapshot availDoc = availTask.getResult();
+                             if (availDoc != null && availDoc.exists()) {
                                  Object slotsObj = availDoc.get("slots");
                                  if (slotsObj instanceof Map) {
                                      @SuppressWarnings("unchecked")
@@ -462,8 +434,7 @@ public class BookingRepository {
                                          String sId = entry.getKey();
                                          if (entry.getValue() instanceof Map<?, ?> slotData) {
                                              String st = (String) slotData.get("status");
-                                             if (st != null && !Constants.STATUS_CANCELLED.equals(st)
-                                                     && !Constants.STATUS_REJECTED.equals(st)) {
+                                             if (isOccupied(st)) {
                                                  if (sId != null && !sId.trim().isEmpty()) {
                                                      bookedSlotIds.add(sId.trim());
                                                  }
@@ -475,10 +446,13 @@ public class BookingRepository {
 
                              // c. Đánh dấu trạng thái cho từng slot
                              List<TimeSlot> resultSlots = new java.util.ArrayList<>();
-                             String todayStr = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                                     .format(new java.util.Date());
-                             String currentTimeStr = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-                                     .format(new java.util.Date());
+                             java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+                             java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.US);
+                             dateFormat.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+                             timeFormat.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+                             java.util.Date now = new java.util.Date();
+                             String todayStr = dateFormat.format(now);
+                             String currentTimeStr = timeFormat.format(now);
                              boolean isToday = dateString.equals(todayStr);
                              boolean isPastDate = dateString.compareTo(todayStr) < 0;
 
@@ -497,7 +471,7 @@ public class BookingRepository {
                                          || "booked".equalsIgnoreCase(baseSlot.getStatus())
                                          || "pending".equalsIgnoreCase(baseSlot.getStatus());
 
-                                 String slotCompareTime = slot.getEndTime() != null ? slot.getEndTime() : slot.getStartTime();
+                                 String slotCompareTime = slot.getStartTime();
                                  boolean isPastSlot = isPastDate || (isToday && slotCompareTime != null
                                          && slotCompareTime.compareTo(currentTimeStr) <= 0);
 
@@ -515,12 +489,11 @@ public class BookingRepository {
                              }
 
                              result.setValue(Resource.success(resultSlots));
-                         });
                   });
            })
            .addOnFailureListener(e -> {
-               List<TimeSlot> defaultSlots = getDefaultTimeSlots();
-               result.setValue(Resource.success(defaultSlots));
+               if (generation != slotsGeneration) return;
+               result.setValue(Resource.error("Không thể tải khung giờ: " + e.getMessage(), null));
            });
     }
 
@@ -529,6 +502,7 @@ public class BookingRepository {
     // ============================================================
 
     public void detachBookingListListener() {
+        historyGeneration++;
         if (bookingListListener != null) {
             bookingListListener.remove();
             bookingListListener = null;
