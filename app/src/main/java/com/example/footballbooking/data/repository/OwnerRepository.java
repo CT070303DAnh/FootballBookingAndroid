@@ -7,6 +7,7 @@ import com.example.footballbooking.data.model.Pitch;
 import com.example.footballbooking.utils.Constants;
 import com.example.footballbooking.utils.Resource;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.storage.FirebaseStorage;
@@ -256,6 +257,35 @@ public class OwnerRepository {
                 .update("matchStatus", matchStatus)
                 .addOnSuccessListener(v -> result.setValue(Resource.success(true)))
                 .addOnFailureListener(e -> result.setValue(Resource.error(e.getMessage(), false)));
+    }
+
+    /** Xác nhận đã nhận tiền mặt tại sân sau khi khung giờ đã kết thúc. */
+    public void confirmCashPayment(Booking booking, String ownerId,
+                                   MutableLiveData<Resource<Boolean>> result) {
+        if (booking == null || booking.getBookingId() == null) {
+            result.setValue(Resource.error("Dữ liệu đơn hàng không hợp lệ", false));
+            return;
+        }
+        if (!ownerId.equals(booking.getPitchOwnerId())) {
+            result.setValue(Resource.error("Không có quyền thao tác đơn này", false));
+            return;
+        }
+        if (!Constants.METHOD_CASH.equals(booking.getPaymentMethod())
+                || !Constants.PAYMENT_UNPAID.equals(booking.getPaymentStatus())) {
+            result.setValue(Resource.error("Đơn này không phải thanh toán tiền mặt chưa xác nhận", false));
+            return;
+        }
+        result.setValue(Resource.loading(null));
+        Map<String, Object> update = new HashMap<>();
+        update.put("paymentStatus", Constants.PAYMENT_PAID);
+        update.put("paymentConfirmedBy", ownerId);
+        update.put("paymentConfirmedAt", FieldValue.serverTimestamp());
+        update.put("updatedAt", FieldValue.serverTimestamp());
+        mDb.collection(Constants.COL_BOOKINGS).document(booking.getBookingId())
+                .update(update)
+                .addOnSuccessListener(v -> result.setValue(Resource.success(true)))
+                .addOnFailureListener(e -> result.setValue(
+                        Resource.error("Xác nhận thanh toán thất bại: " + e.getMessage(), false)));
     }
 
     /**

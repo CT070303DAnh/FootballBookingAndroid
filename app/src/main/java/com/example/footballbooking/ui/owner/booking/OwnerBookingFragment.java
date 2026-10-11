@@ -42,6 +42,17 @@ public class OwnerBookingFragment extends Fragment
 
     private List<Booking> allBookings = new ArrayList<>();
     private int currentTab = 0;
+    private final android.os.Handler clockHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable clockRefresh = new Runnable() {
+        @Override
+        public void run() {
+            if (binding != null && adapter != null) {
+                adapter.refreshTimeSensitiveState();
+                clockHandler.postDelayed(this, 30_000L);
+            }
+        }
+    };
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -98,6 +109,19 @@ public class OwnerBookingFragment extends Fragment
             else if (resource != null && resource.isError())
                 Snackbar.make(binding.getRoot(), "Lỗi: " + resource.message, Snackbar.LENGTH_LONG).show();
         });
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        clockHandler.removeCallbacks(clockRefresh);
+        clockHandler.post(clockRefresh);
+    }
+
+    @Override
+    public void onStop() {
+        clockHandler.removeCallbacks(clockRefresh);
+        super.onStop();
     }
 
     private void filterAndUpdate() {
@@ -170,7 +194,22 @@ public class OwnerBookingFragment extends Fragment
     }
 
     @Override
+    public void onConfirmCashPayment(Booking booking) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Xác nhận đã nhận tiền")
+                .setMessage("Xác nhận đã nhận đủ "
+                        + java.text.NumberFormat.getNumberInstance(new java.util.Locale("vi", "VN"))
+                        .format((long) booking.getTotalAmount())
+                        + "đ tiền mặt từ khách hàng?")
+                .setPositiveButton("Xác nhận", (dialog, which) ->
+                        ownerViewModel.confirmCashPayment(booking))
+                .setNegativeButton("Hủy", null)
+                .show();
+    }
+
+    @Override
     public void onDestroyView() {
+        clockHandler.removeCallbacks(clockRefresh);
         super.onDestroyView();
         binding = null;
     }

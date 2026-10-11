@@ -194,6 +194,36 @@
                 android:layout_marginStart="4dp" />
         </LinearLayout>
 
+        <!-- Xác nhận tiền mặt sau khi hết giờ sân -->
+        <LinearLayout
+            android:id="@+id/layout_cash_payment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingTop="10dp"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Thanh toán tại sân: chưa xác nhận"
+                android:textColor="@color/status_pending"
+                android:textSize="12sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_confirm_cash_payment"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Đã nhận tiền"
+                android:textColor="@color/status_approved"
+                app:strokeColor="@color/status_approved"
+                android:textSize="12sp" />
+        </LinearLayout>
+
         <!-- Action buttons: Duyệt / Từ chối -->
         <LinearLayout
             android:id="@+id/layout_admin_actions"

@@ -20,6 +20,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * BookingAdapter — Hiển thị lịch sử đặt sân với màu sắc theo trạng thái.
@@ -30,9 +32,11 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
     public interface OnBookingActionListener {
         void onCancelClick(Booking booking);
         void onBookingClick(Booking booking);
+        void onReviewClick(Booking booking);
     }
 
     private final OnBookingActionListener listener;
+    private Set<String> reviewedBookingIds = new HashSet<>();
     private final NumberFormat currencyFmt =
             NumberFormat.getNumberInstance(new Locale("vi", "VN"));
 
@@ -63,6 +67,16 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
         this.listener = listener;
     }
 
+    public void setReviewedBookingIds(Set<String> bookingIds) {
+        reviewedBookingIds = bookingIds == null ? new HashSet<>() : new HashSet<>(bookingIds);
+        notifyDataSetChanged();
+    }
+
+    /** Refreshes buttons whose visibility depends on the current clock. */
+    public void refreshTimeSensitiveState() {
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public BookingViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -73,7 +87,7 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
 
     @Override
     public void onBindViewHolder(@NonNull BookingViewHolder holder, int position) {
-        holder.bind(getItem(position), listener, currencyFmt);
+        holder.bind(getItem(position), listener, currencyFmt, reviewedBookingIds);
     }
 
     static class BookingViewHolder extends RecyclerView.ViewHolder {
@@ -85,7 +99,7 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
         }
 
         void bind(Booking booking, OnBookingActionListener listener,
-                  NumberFormat currencyFmt) {
+                  NumberFormat currencyFmt, Set<String> reviewedBookingIds) {
 
             // --- Tên sân + Giờ ---
             b.tvHistoryPitchName.setText(booking.getPitchName());
@@ -104,7 +118,7 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
             applyBookingStatusStyle(booking.getBookingStatus());
 
             // --- Match Status chip ---
-            applyMatchStatusStyle(booking.getMatchStatus(), booking.getBookingStatus());
+            applyMatchStatusStyle(booking);
 
             // --- Payment Status ---
             applyPaymentStatusStyle(booking.getPaymentStatus());
@@ -116,6 +130,17 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
 
             b.btnCancelBooking.setOnClickListener(v -> {
                 if (listener != null) listener.onCancelClick(booking);
+            });
+
+            boolean canReview = Constants.STATUS_APPROVED.equals(booking.getBookingStatus())
+                    && hasPassedEndTime(booking)
+                    && Constants.PAYMENT_PAID.equals(booking.getPaymentStatus())
+                    && booking.getBookingId() != null
+                    && !reviewedBookingIds.contains(booking.getBookingId());
+            b.btnReviewBooking.setVisibility(canReview
+                    ? android.view.View.VISIBLE : android.view.View.GONE);
+            b.btnReviewBooking.setOnClickListener(v -> {
+                if (listener != null) listener.onReviewClick(booking);
             });
 
             b.getRoot().setOnClickListener(v -> {
@@ -140,13 +165,17 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
             b.chipBookingStatus.setChipBackgroundColorResource(bgColor);
         }
 
-        private void applyMatchStatusStyle(String matchStatus, String bookingStatus) {
+        private void applyMatchStatusStyle(Booking booking) {
+            String bookingStatus = booking.getBookingStatus();
             if (!Constants.STATUS_APPROVED.equals(bookingStatus)) {
                 b.chipMatchStatus.setVisibility(android.view.View.GONE);
                 return;
             }
             b.chipMatchStatus.setVisibility(android.view.View.VISIBLE);
-            switch (matchStatus) {
+            // Không cần chờ chủ sân bấm kết thúc: quá endTime thì UI coi là đã kết thúc.
+            String matchStatus = hasPassedEndTime(booking)
+                    ? Constants.MATCH_FINISHED : booking.getMatchStatus();
+            switch (matchStatus == null ? "" : matchStatus) {
                 case Constants.MATCH_PLAYING:
                     b.chipMatchStatus.setText("🔴 Đang đá");
                     b.chipMatchStatus.setChipBackgroundColorResource(R.color.match_playing);
@@ -199,9 +228,21 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
 
         private boolean isPastMatchTime(Booking booking) {
             try {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+                sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
                 Date match = sdf.parse(booking.getBookingDate() + " " + booking.getStartTime());
                 return match != null && new Date().after(match);
+            } catch (Exception e) { return false; }
+        }
+
+        private boolean hasPassedEndTime(Booking booking) {
+            if (booking == null || booking.getBookingDate() == null
+                    || booking.getEndTime() == null) return false;
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+                sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+                Date end = sdf.parse(booking.getBookingDate() + " " + booking.getEndTime());
+                return end != null && !new Date().before(end);
             } catch (Exception e) { return false; }
         }
     }

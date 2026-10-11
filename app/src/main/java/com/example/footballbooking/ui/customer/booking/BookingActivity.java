@@ -84,8 +84,6 @@ public class BookingActivity extends AppCompatActivity
                 binding.btnConfirmBooking.setText("Xác nhận và Thanh toán (VietQR) 💳");
             } else if (checkedId == binding.rbCash.getId()) {
                 binding.btnConfirmBooking.setText("Xác nhận đặt sân (Tiền mặt) 💵");
-            } else if (checkedId == binding.rbPayLater.getId()) {
-                binding.btnConfirmBooking.setText("Xác nhận giữ chỗ (Thanh toán sau) ⏳");
             }
         });
     }
@@ -168,10 +166,10 @@ public class BookingActivity extends AppCompatActivity
         final String confirmedSlot = slot.getSlotId();
         final double confirmedAmount = bookingViewModel.getTotalAmount();
 
-        final String paymentMethod = binding.rbCash.isChecked() ? Constants.METHOD_CASH
-                : binding.rbPayLater.isChecked() ? Constants.METHOD_PAY_LATER : Constants.METHOD_PAYOS;
-        final String paymentLabel = binding.rbCash.isChecked() ? "Tiền mặt tại sân"
-                : binding.rbPayLater.isChecked() ? "Thanh toán sau" : "PayOS - VietQR";
+        final String paymentMethod = binding.rbCash.isChecked()
+                ? Constants.METHOD_CASH : Constants.METHOD_PAYOS;
+        final String paymentLabel = binding.rbCash.isChecked()
+                ? "Tiền mặt tại sân" : "PayOS - VietQR";
 
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("Xác nhận đặt sân")
@@ -299,15 +297,6 @@ public class BookingActivity extends AppCompatActivity
                     intent.putExtra(Constants.EXTRA_BOOKING_ID, createdBooking.getBookingId());
                     startActivity(intent);
                     finish();
-                } else if (Constants.METHOD_PAY_LATER.equals(createdBooking.getPaymentMethod())) {
-                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                            .setTitle("Giữ chỗ thành công! ⏳")
-                            .setMessage("Đơn đặt sân đã được giữ chỗ thành công.\nMã đơn: #"
-                                    + createdBooking.getBookingId()
-                                    + "\nBạn có thể thanh toán trực tuyến bất cứ lúc nào trong mục Lịch sử đặt sân.")
-                            .setPositiveButton("Đồng ý", (dialog, which) -> finish())
-                            .setCancelable(false)
-                            .show();
                 } else {
                     new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                             .setTitle("Đặt sân thành công! 🎉")

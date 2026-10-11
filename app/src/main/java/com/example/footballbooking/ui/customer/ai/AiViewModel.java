@@ -12,6 +12,7 @@ import com.example.footballbooking.data.repository.BookingRepository;
 import com.example.footballbooking.data.repository.PitchRepository;
 import com.example.footballbooking.data.repository.WeatherRepository;
 import com.example.footballbooking.utils.AiScoringEngine;
+import com.example.footballbooking.utils.Constants;
 import com.example.footballbooking.utils.Resource;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -225,12 +226,23 @@ public class AiViewModel extends ViewModel {
         });
     }
 
-    /** Chuyển List<Booking> → Map<pitchId, bookingCount> */
+    /**
+     * Chuyển lịch sử đặt sân hợp lệ thành Map<pitchId, bookingCount>.
+     *
+     * Chỉ một lượt đặt đã được duyệt và thanh toán thành công mới được
+     * xem là lịch sử sử dụng thật của user. Đơn pending, bị từ chối,
+     * đã hủy, chưa thanh toán hoặc đã hoàn tiền không được cộng điểm.
+     */
     private Map<String, Integer> buildHistoryMap(List<Booking> bookings) {
         Map<String, Integer> map = new HashMap<>();
         if (bookings == null) return map;
         for (Booking b : bookings) {
-            if (b.getPitchId() != null) {
+            if (b == null
+                    || !Constants.STATUS_APPROVED.equals(b.getBookingStatus())
+                    || !Constants.PAYMENT_PAID.equals(b.getPaymentStatus())) {
+                continue;
+            }
+            if (b.getPitchId() != null && !b.getPitchId().trim().isEmpty()) {
                 map.put(b.getPitchId(), map.getOrDefault(b.getPitchId(), 0) + 1);
             }
         }

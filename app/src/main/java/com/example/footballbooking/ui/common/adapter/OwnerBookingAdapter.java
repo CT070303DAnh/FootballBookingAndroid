@@ -26,6 +26,7 @@ public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapte
         void onApprove(Booking booking);
         void onReject(Booking booking);
         void onMatchStatusChange(String bookingId, String newStatus);
+        void onConfirmCashPayment(Booking booking);
     }
 
     private final OnOwnerBookingActionListener listener;
@@ -45,6 +46,8 @@ public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapte
                     && Objects.equals(o.getStartTime(), n.getStartTime())
                     && Objects.equals(o.getEndTime(), n.getEndTime())
                     && o.getTotalAmount() == n.getTotalAmount()
+                    && Objects.equals(o.getPaymentStatus(), n.getPaymentStatus())
+                    && Objects.equals(o.getPaymentMethod(), n.getPaymentMethod())
                     && Objects.equals(o.getNote(), n.getNote())
                     && Objects.equals(o.getBookingStatus(), n.getBookingStatus())
                     && Objects.equals(o.getMatchStatus(), n.getMatchStatus());
@@ -54,6 +57,11 @@ public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapte
     public OwnerBookingAdapter(OnOwnerBookingActionListener listener) {
         super(DIFF);
         this.listener = listener;
+    }
+
+    /** Refreshes the cash-confirmation button when the slot end time passes. */
+    public void refreshTimeSensitiveState() {
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -112,6 +120,15 @@ public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapte
                 b.btnMatchPlaying.setOnClickListener(v -> listener.onMatchStatusChange(bk.getBookingId(), Constants.MATCH_PLAYING));
                 b.btnMatchFinished.setOnClickListener(v -> listener.onMatchStatusChange(bk.getBookingId(), Constants.MATCH_FINISHED));
             }
+
+            boolean canConfirmCash = isApproved
+                    && Constants.METHOD_CASH.equals(bk.getPaymentMethod())
+                    && Constants.PAYMENT_UNPAID.equals(bk.getPaymentStatus())
+                    && hasPassedEndTime(bk);
+            b.layoutCashPayment.setVisibility(canConfirmCash ? View.VISIBLE : View.GONE);
+            b.btnConfirmCashPayment.setOnClickListener(v -> {
+                if (listener != null) listener.onConfirmCashPayment(bk);
+            });
         }
 
         private void applyStatusStyle(String status) {
@@ -141,6 +158,17 @@ public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapte
             } catch (Exception e) {
                 return dateStr;
             }
+        }
+
+        private boolean hasPassedEndTime(Booking booking) {
+            if (booking == null || booking.getBookingDate() == null
+                    || booking.getEndTime() == null) return false;
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+                sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+                Date end = sdf.parse(booking.getBookingDate() + " " + booking.getEndTime());
+                return end != null && !new Date().before(end);
+            } catch (Exception e) { return false; }
         }
     }
 }

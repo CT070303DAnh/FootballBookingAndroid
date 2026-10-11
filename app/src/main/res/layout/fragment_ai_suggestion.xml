@@ -18,7 +18,7 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="🤖 AI Gợi ý sân"
+            app:title="🏆 Top gợi ý"
             app:titleTextColor="@color/white"
             android:background="@color/transparent" />
     </com.google.android.material.appbar.AppBarLayout>
@@ -137,7 +137,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Top gợi ý hôm nay"
+                    android:text="Top gợi ý"
                     android:textColor="@color/white"
                     android:textSize="18sp"
                     android:textStyle="bold" />

@@ -201,7 +201,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="✨ AI Gợi ý"
+                            android:text="✨ Top gợi ý"
                             android:textColor="@color/accent"
                             android:textSize="11sp"
                             android:textStyle="bold" />

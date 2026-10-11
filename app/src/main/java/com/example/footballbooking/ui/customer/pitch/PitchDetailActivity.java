@@ -6,13 +6,19 @@ import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.lifecycle.MutableLiveData;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.example.footballbooking.data.model.Pitch;
+import com.example.footballbooking.data.model.Review;
+import com.example.footballbooking.data.repository.ReviewRepository;
 import com.example.footballbooking.databinding.ActivityPitchDetailBinding;
+import com.example.footballbooking.ui.common.adapter.ReviewAdapter;
 import com.example.footballbooking.ui.customer.booking.BookingActivity;
 import com.example.footballbooking.utils.Constants;
+import com.example.footballbooking.utils.Resource;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -28,6 +34,9 @@ public class PitchDetailActivity extends AppCompatActivity {
     private PitchViewModel pitchViewModel;
     private String pitchId;
     private Pitch currentPitch;
+    private ReviewRepository reviewRepository;
+    private ReviewAdapter reviewAdapter;
+    private final MutableLiveData<Resource<java.util.List<Review>>> reviews = new MutableLiveData<>();
     private final NumberFormat currencyFmt =
             NumberFormat.getNumberInstance(new Locale("vi", "VN"));
 
@@ -47,11 +56,14 @@ public class PitchDetailActivity extends AppCompatActivity {
             }
 
             pitchViewModel = new ViewModelProvider(this).get(PitchViewModel.class);
+            reviewRepository = ReviewRepository.createScoped();
 
             setupToolbar();
             setupClickListeners();
+            setupReviews();
             observeViewModel();
             pitchViewModel.loadPitchDetail(pitchId);
+            reviewRepository.getReviewsForPitch(pitchId, reviews);
         } catch (Exception e) {
             android.widget.Toast.makeText(this, "Lỗi khởi tạo Activity: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
             finish();
@@ -86,6 +98,23 @@ public class PitchDetailActivity extends AppCompatActivity {
             Intent callIntent = new Intent(Intent.ACTION_DIAL,
                     android.net.Uri.parse("tel:" + phone));
             startActivity(callIntent);
+        });
+    }
+
+    private void setupReviews() {
+        reviewAdapter = new ReviewAdapter();
+        binding.rvReviews.setLayoutManager(new LinearLayoutManager(this));
+        binding.rvReviews.setAdapter(reviewAdapter);
+        binding.rvReviews.setNestedScrollingEnabled(false);
+
+        reviews.observe(this, resource -> {
+            if (resource == null || !resource.isSuccess()) return;
+            java.util.List<Review> data = resource.data == null
+                    ? new java.util.ArrayList<>() : resource.data;
+            int visibleCount = Math.min(3, data.size());
+            reviewAdapter.submitList(new java.util.ArrayList<>(data.subList(0, visibleCount)));
+            binding.tvViewAllReviews.setVisibility(data.size() > 3 ? View.VISIBLE : View.GONE);
+            binding.rvReviews.setVisibility(data.isEmpty() ? View.GONE : View.VISIBLE);
         });
     }
 
@@ -193,6 +222,12 @@ public class PitchDetailActivity extends AppCompatActivity {
         String ownerBankAccount = Constants.normalizeOwnerBankAccount(ownerPhone);
         binding.tvOwnerBankAccount.setText(ownerBankAccount.isEmpty()
                 ? "Chưa cập nhật" : ownerBankAccount);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (reviewRepository != null) reviewRepository.detachReviewsListener();
+        super.onDestroy();
     }
 }
 

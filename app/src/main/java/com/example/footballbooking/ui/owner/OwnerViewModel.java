@@ -12,6 +12,7 @@ import com.example.footballbooking.data.repository.OwnerRepository;
 import com.example.footballbooking.utils.Constants;
 import com.example.footballbooking.utils.Resource;
 import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.data.Entry;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ public class OwnerViewModel extends ViewModel {
     private final MutableLiveData<Resource<List<Pitch>>>   myPitches      = new MutableLiveData<>();
     private final MutableLiveData<Resource<List<Booking>>> myBookings     = new MutableLiveData<>();
     private final MutableLiveData<Resource<List<Booking>>> reportBookings = new MutableLiveData<>();
+    private final MutableLiveData<User> ownerReady = new MutableLiveData<>();
     private final MutableLiveData<Resource<Boolean>>       actionResult   = new MutableLiveData<>();
     private final MutableLiveData<Resource<String>>        uploadResult   = new MutableLiveData<>();
     private final MutableLiveData<Resource<Pitch>>         pitchCreateResult = new MutableLiveData<>();
@@ -59,6 +61,7 @@ public class OwnerViewModel extends ViewModel {
      */
     public void init(User owner) {
         this.currentOwner = owner;
+        ownerReady.setValue(owner);
         loadMyPitches();
         loadMyBookings();
     }
@@ -72,6 +75,7 @@ public class OwnerViewModel extends ViewModel {
     public MutableLiveData<Resource<List<Pitch>>>   getMyPitches()         { return myPitches; }
     public MutableLiveData<Resource<List<Booking>>> getMyBookings()        { return myBookings; }
     public MutableLiveData<Resource<List<Booking>>> getReportBookings()    { return reportBookings; }
+    public MutableLiveData<User> getOwnerReady()                            { return ownerReady; }
     public MutableLiveData<Resource<Boolean>>        getActionResult()     { return actionResult; }
     public MutableLiveData<Resource<String>>         getUploadResult()     { return uploadResult; }
     public MutableLiveData<Resource<Pitch>>          getPitchCreateResult(){ return pitchCreateResult; }
@@ -132,6 +136,11 @@ public class OwnerViewModel extends ViewModel {
         ownerRepository.updateMatchStatus(bookingId, matchStatus, actionResult);
     }
 
+    public void confirmCashPayment(Booking booking) {
+        if (currentOwner == null) return;
+        ownerRepository.confirmCashPayment(booking, currentOwner.getUid(), actionResult);
+    }
+
     // ============================================================
     // REPORT
     // ============================================================
@@ -146,6 +155,8 @@ public class OwnerViewModel extends ViewModel {
     public List<BarEntry> buildRevenueBarEntries(List<Booking> bookings) {
         if (bookings == null) return new ArrayList<>();
         Map<Integer, Double> dailyRevenue = new HashMap<>();
+        int daysInMonth = getDaysInReportMonth();
+        for (int day = 1; day <= daysInMonth; day++) dailyRevenue.put(day, 0.0);
         for (Booking b : bookings) {
             if (!isRevenueBooking(b)) continue;
             try {
@@ -161,6 +172,47 @@ public class OwnerViewModel extends ViewModel {
         return entries;
     }
 
+    /** Đếm tổng số đơn theo từng ngày trong tháng đang xem, bao gồm cả ngày có 0 đơn. */
+    public List<Entry> buildBookingCountEntries(List<Booking> bookings) {
+        List<Entry> entries = new ArrayList<>();
+        int daysInMonth = getDaysInReportMonth();
+        int[] dailyCount = new int[daysInMonth + 1];
+
+        if (bookings != null) {
+            for (Booking booking : bookings) {
+                // Chỉ đếm đơn tạo ra doanh thu: đã thanh toán online hoặc
+                // đã được chủ sân xác nhận thu tiền mặt.
+                if (!isRevenueBooking(booking)) continue;
+                try {
+                    int day = Integer.parseInt(booking.getBookingDate().split("-")[2]);
+                    if (day >= 1 && day <= daysInMonth) dailyCount[day]++;
+                } catch (Exception ignored) {
+                    // Bỏ qua dữ liệu ngày không hợp lệ.
+                }
+            }
+        }
+
+        for (int day = 1; day <= daysInMonth; day++) {
+            entries.add(new Entry(day, dailyCount[day]));
+        }
+        return entries;
+    }
+
+    private int getDaysInReportMonth() {
+        if (currentReportMonth == null) return 31;
+        try {
+            java.text.SimpleDateFormat format = new java.text.SimpleDateFormat(
+                    "yyyy-MM", Locale.US);
+            format.setLenient(false);
+            java.util.Date date = format.parse(currentReportMonth);
+            java.util.Calendar calendar = java.util.Calendar.getInstance();
+            calendar.setTime(date);
+            return calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH);
+        } catch (Exception ignored) {
+            return 31;
+        }
+    }
+
     private boolean isRevenueBooking(Booking b) {
         return com.example.footballbooking.utils.RevenuePolicy.includes(b, currentReportMonth);
     }
@@ -170,6 +222,35 @@ public class OwnerViewModel extends ViewModel {
         double total = 0;
         for (Booking b : bookings) if (isRevenueBooking(b)) total += b.getTotalAmount();
         return total;
+    }
+
+    /** Số đơn thực sự tạo ra doanh thu trong tháng đang xem. */
+    public int countRevenueBookings(List<Booking> bookings) {
+        if (bookings == null) return 0;
+        int count = 0;
+        for (Booking b : bookings) if (isRevenueBooking(b)) count++;
+        return count;
+    }
+
+    /** Số đơn đã được duyệt nhưng vẫn chưa ghi nhận thanh toán. */
+    public int countUnpaidApprovedBookings(List<Booking> bookings) {
+        if (bookings == null) return 0;
+        int count = 0;
+        for (Booking b : bookings) {
+            if (isInReportMonth(b)
+                    && Constants.STATUS_APPROVED.equals(b.getBookingStatus())
+                    && Constants.PAYMENT_UNPAID.equals(b.getPaymentStatus())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean isInReportMonth(Booking booking) {
+        return booking != null && currentReportMonth != null
+                && booking.getBookingDate() != null
+                && booking.getBookingDate().matches(
+                    java.util.regex.Pattern.quote(currentReportMonth) + "-[0-9]{2}");
     }
 
     @Override

@@ -6,10 +6,34 @@ import static org.junit.Assert.*;
 
 public class RevenuePolicyTest {
     private Booking booking(String payment, String status, String date, double amount) {
+        return booking(payment, status, date, amount, Constants.METHOD_PAYOS);
+    }
+
+    private Booking booking(String payment, String status, String date, double amount,
+                            String method) {
         Booking b = new Booking();
         b.setPaymentStatus(payment); b.setBookingStatus(status);
         b.setBookingDate(date); b.setTotalAmount(amount);
+        b.setPaymentMethod(method);
         return b;
+    }
+
+    @Test public void includesPaidPayosTransfer() {
+        assertTrue(RevenuePolicy.includes(
+                booking(Constants.PAYMENT_PAID, Constants.STATUS_APPROVED,
+                        "2026-10-09", 200000, Constants.METHOD_PAYOS), "2026-10"));
+    }
+
+    @Test public void includesCashAfterOwnerConfirmation() {
+        assertTrue(RevenuePolicy.includes(
+                booking(Constants.PAYMENT_PAID, Constants.STATUS_APPROVED,
+                        "2026-10-09", 200000, Constants.METHOD_CASH), "2026-10"));
+    }
+
+    @Test public void excludesCashBeforeOwnerConfirmation() {
+        assertFalse(RevenuePolicy.includes(
+                booking(Constants.PAYMENT_UNPAID, Constants.STATUS_APPROVED,
+                        "2026-10-09", 200000, Constants.METHOD_CASH), "2026-10"));
     }
     @Test public void includesPaidApprovedMatchInMonth() {
         assertTrue(RevenuePolicy.includes(booking("paid", "approved", "2026-10-09", 200000), "2026-10"));

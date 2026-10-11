@@ -2,7 +2,13 @@ package com.example.footballbooking.utils;
 
 import com.example.footballbooking.data.model.Booking;
 
-/** Revenue by match month, excluding unpaid, refunded and cancelled orders. */
+/**
+ * Chính sách doanh thu theo tháng.
+ *
+ * Doanh thu được ghi nhận khi đơn đã được duyệt và paymentStatus = paid.
+ * Vì vậy policy này bao phủ cả PayOS/VietQR đã nhận tiền và tiền mặt đã
+ * được chủ sân xác nhận; mọi đơn unpaid/refunded đều bị loại.
+ */
 public final class RevenuePolicy {
     private RevenuePolicy() { }
 

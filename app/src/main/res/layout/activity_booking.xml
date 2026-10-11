@@ -264,14 +264,6 @@
                         android:textSize="14sp"
                         android:layout_marginTop="6dp" />
 
-                    <com.google.android.material.radiobutton.MaterialRadioButton
-                        android:id="@+id/rb_pay_later"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="⏳ Thanh toán sau (Giữ chỗ trước, thanh toán sau)"
-                        android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:layout_marginTop="6dp" />
                 </RadioGroup>
             </com.google.android.material.card.MaterialCardView>
 

@@ -16,7 +16,7 @@
     <item
         android:id="@+id/nav_ai"
         android:icon="@android:drawable/ic_menu_search"
-        android:title="AI Gợi ý" />
+        android:title="Top gợi ý" />
 
     <item
         android:id="@+id/nav_history"

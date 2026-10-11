@@ -8,11 +8,13 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from api.payments import router as payments_router
 from api.payos import router as payos_router
+from api.reviews import router as reviews_router
 from services.payos_service import PaymentError, Settings as PayOSSettings
 
 app = FastAPI(title="Football Booking Backend", version="0.1.0")
 app.include_router(payments_router)
 app.include_router(payos_router)
+app.include_router(reviews_router)
 
 
 @app.get("/health")
