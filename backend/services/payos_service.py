@@ -344,6 +344,7 @@ async def settle_webhook(payload: dict) -> dict:
             raise PaymentError("Tổng tiền booking đã thay đổi.", 409)
 
         owns_slot = False
+        day_ref = None
         if all(isinstance(booking.get(key), str) and booking[key]
                for key in ("pitchId", "bookingDate", "slotId")):
             day_ref = (db.collection("pitches").document(booking["pitchId"])
@@ -363,22 +364,45 @@ async def settle_webhook(payload: dict) -> dict:
             or paid_at < created_at
             or paid_at > expires_at
         )
+        auto_approved = not review
         tx.update(session_ref, {
             "status": "paid",
             "payosTransactionId": transaction_id,
             "payosPaymentLinkId": webhook.payment_link_id,
             "paidAt": paid_at,
             "payosStatus": webhook.code,
+            "autoApproved": auto_approved,
             "updatedAt": firestore.SERVER_TIMESTAMP,
         })
-        tx.update(booking_ref, {
+        booking_update = {
             "paymentStatus": "paid",
             "paymentMethod": "payos",
             "payosTransactionId": transaction_id,
             "paymentReviewRequired": review,
             "updatedAt": firestore.SERVER_TIMESTAMP,
-        })
-        return {"status": "paid", "paymentRef": session_ref.id}
+        }
+        if auto_approved:
+            booking_update.update({
+                "bookingStatus": "approved",
+                "paymentApprovedAt": paid_at,
+                "approvalSource": "payos",
+            })
+            # The hold created during booking becomes a confirmed reservation
+            # in the same transaction as the payment and booking update.
+            tx.update(day_ref, {
+                f"slots.{booking['slotId']}": {
+                    "status": "booked",
+                    "bookingId": session["bookingId"],
+                },
+                "lastSlotId": booking["slotId"],
+            })
+        tx.update(booking_ref, booking_update)
+        return {
+            "status": "paid",
+            "paymentRef": session_ref.id,
+            "bookingStatus": "approved" if auto_approved else booking.get("bookingStatus"),
+            "autoApproved": auto_approved,
+        }
 
     return settle(db.transaction())
 
