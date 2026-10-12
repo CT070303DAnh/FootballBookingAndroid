@@ -20,11 +20,13 @@ import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.data.PieData;
 import com.github.mikephil.charting.data.PieDataSet;
 import com.github.mikephil.charting.data.PieEntry;
+import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.text.NumberFormat;
@@ -56,6 +58,7 @@ public class AdminReportFragment extends Fragment {
     private final Calendar reportCalendar = Calendar.getInstance();
     private final NumberFormat currencyFmt =
             NumberFormat.getNumberInstance(new Locale("vi", "VN"));
+    private List<String> revenueBucketLabels = new ArrayList<>();
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -141,12 +144,13 @@ public class AdminReportFragment extends Fragment {
         // KPIs
         double totalRevenue = adminViewModel.calcTotalRevenue(bookings);
         binding.tvTotalRevenue.setText(currencyFmt.format((long) totalRevenue) + "đ");
-        binding.tvTotalBookings.setText(bookings.size() + " đơn");
+        binding.tvTotalBookings.setText(adminViewModel.countRevenueBookings(bookings) + " đơn");
 
         // Charts
-        updateBarChart(adminViewModel.buildRevenueBarEntries(bookings));
+        revenueBucketLabels = adminViewModel.buildFiveDayBucketLabels();
+        updateBarChart(adminViewModel.buildFiveDayRevenueBarEntries(bookings));
         updatePieChart(adminViewModel.buildStatusDistribution(bookings));
-        updateLineChart(bookings);
+        updateLineChart(adminViewModel.buildFiveDayBookingCountEntries(bookings));
     }
 
     // ============================================================
@@ -162,6 +166,7 @@ public class AdminReportFragment extends Fragment {
         binding.barChartRevenue.getXAxis().setTextColor(Color.GRAY);
         binding.barChartRevenue.getXAxis().setPosition(XAxis.XAxisPosition.BOTTOM);
         binding.barChartRevenue.getXAxis().setDrawGridLines(false);
+        configureFiveDayAxis(binding.barChartRevenue.getXAxis());
         binding.barChartRevenue.getAxisLeft().setTextColor(Color.GRAY);
         binding.barChartRevenue.getAxisLeft().setGridColor(0x22FFFFFF);
         binding.barChartRevenue.getAxisRight().setEnabled(false);
@@ -172,7 +177,7 @@ public class AdminReportFragment extends Fragment {
         // PieChart
         binding.pieChartStatus.setBackgroundColor(Color.TRANSPARENT);
         binding.pieChartStatus.getDescription().setEnabled(false);
-        binding.pieChartStatus.setUsePercentValues(true);
+        binding.pieChartStatus.setUsePercentValues(false);
         binding.pieChartStatus.setHoleColor(Color.TRANSPARENT);
         binding.pieChartStatus.setHoleRadius(45f);
         binding.pieChartStatus.setTransparentCircleAlpha(0);
@@ -189,6 +194,7 @@ public class AdminReportFragment extends Fragment {
         binding.lineChartBookings.getXAxis().setTextColor(Color.GRAY);
         binding.lineChartBookings.getXAxis().setPosition(XAxis.XAxisPosition.BOTTOM);
         binding.lineChartBookings.getXAxis().setDrawGridLines(false);
+        configureFiveDayAxis(binding.lineChartBookings.getXAxis());
         binding.lineChartBookings.getAxisLeft().setTextColor(Color.GRAY);
         binding.lineChartBookings.getAxisLeft().setGridColor(0x22FFFFFF);
         binding.lineChartBookings.getAxisRight().setEnabled(false);
@@ -197,11 +203,12 @@ public class AdminReportFragment extends Fragment {
     private void updateBarChart(List<BarEntry> entries) {
         if (entries.isEmpty()) {
             binding.barChartRevenue.clear();
+            configureFiveDayAxis(binding.barChartRevenue.getXAxis());
             binding.barChartRevenue.invalidate();
             return;
         }
         BarDataSet dataSet = new BarDataSet(entries, "Doanh thu");
-        dataSet.setColor(0xFF4CAF50);          // Xanh lá
+        dataSet.setColor(0xFFFF9800);          // Cam, giống báo cáo Chủ sân
         dataSet.setValueTextColor(Color.WHITE);
         dataSet.setValueTextSize(9f);
         dataSet.setDrawValues(true);
@@ -210,31 +217,33 @@ public class AdminReportFragment extends Fragment {
         barData.setBarWidth(0.8f);
 
         binding.barChartRevenue.setData(barData);
+        configureFiveDayAxis(binding.barChartRevenue.getXAxis());
         binding.barChartRevenue.animateY(800, Easing.EaseInOutQuart);
         binding.barChartRevenue.invalidate();
     }
 
     private void updatePieChart(Map<String, Integer> statusDist) {
         List<PieEntry> entries = new ArrayList<>();
+        List<Integer> colors = new ArrayList<>();
         int approved  = statusDist.getOrDefault(Constants.STATUS_APPROVED, 0);
         int pending   = statusDist.getOrDefault(Constants.STATUS_PENDING, 0);
         int rejected  = statusDist.getOrDefault(Constants.STATUS_REJECTED, 0);
         int cancelled = statusDist.getOrDefault(Constants.STATUS_CANCELLED, 0);
 
-        if (approved  > 0) entries.add(new PieEntry(approved,  "Duyệt"));
-        if (pending   > 0) entries.add(new PieEntry(pending,   "Chờ"));
-        if (rejected  > 0) entries.add(new PieEntry(rejected,  "Từ chối"));
-        if (cancelled > 0) entries.add(new PieEntry(cancelled, "Hủy"));
+        if (approved  > 0) { entries.add(new PieEntry(approved,  "Duyệt")); colors.add(0xFF10B981); }
+        if (pending   > 0) { entries.add(new PieEntry(pending,   "Chờ")); colors.add(0xFFF59E0B); }
+        if (rejected  > 0) { entries.add(new PieEntry(rejected,  "Từ chối")); colors.add(0xFFEF4444); }
+        if (cancelled > 0) { entries.add(new PieEntry(cancelled, "Hủy")); colors.add(0xFF6B7280); }
+
+        binding.tvLegendApproved.setText("Duyệt: " + approved);
+        binding.tvLegendPending.setText("Chờ: " + pending);
+        binding.tvLegendRejected.setText("Từ chối: " + rejected);
+        binding.tvLegendCancelled.setText("Hủy: " + cancelled);
 
         if (entries.isEmpty()) { binding.pieChartStatus.clear(); return; }
 
         PieDataSet dataSet = new PieDataSet(entries, "");
-        dataSet.setColors(
-                0xFF10B981, // xanh lá — approved
-                0xFFF59E0B, // vàng — pending
-                0xFFEF4444, // đỏ — rejected
-                0xFF6B7280  // xám — cancelled
-        );
+        dataSet.setColors(colors);
         dataSet.setValueTextColor(Color.WHITE);
         dataSet.setValueTextSize(11f);
         dataSet.setSliceSpace(3f);
@@ -243,29 +252,15 @@ public class AdminReportFragment extends Fragment {
         binding.pieChartStatus.animateY(1000, Easing.EaseInOutQuart);
         binding.pieChartStatus.invalidate();
 
-        // Update legend text
-        binding.tvLegendApproved.setText("Duyệt: " + approved);
-        binding.tvLegendPending.setText("Chờ: " + pending);
-        binding.tvLegendRejected.setText("Từ chối: " + (rejected + cancelled));
     }
 
-    private void updateLineChart(List<Booking> bookings) {
-        // Đếm số đơn theo ngày
-        java.util.Map<Integer, Integer> dailyCount = new java.util.TreeMap<>();
-        for (Booking b : bookings) {
-            if (b.getBookingDate() == null) continue;
-            try {
-                int day = Integer.parseInt(b.getBookingDate().split("-")[2]);
-                dailyCount.put(day, dailyCount.getOrDefault(day, 0) + 1);
-            } catch (Exception ignored) {}
+    private void updateLineChart(List<Entry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            binding.lineChartBookings.clear();
+            configureFiveDayAxis(binding.lineChartBookings.getXAxis());
+            binding.lineChartBookings.invalidate();
+            return;
         }
-
-        List<com.github.mikephil.charting.data.Entry> entries = new ArrayList<>();
-        for (java.util.Map.Entry<Integer, Integer> e : dailyCount.entrySet()) {
-            entries.add(new com.github.mikephil.charting.data.Entry(e.getKey(), e.getValue()));
-        }
-
-        if (entries.isEmpty()) { binding.lineChartBookings.clear(); return; }
 
         LineDataSet dataSet = new LineDataSet(entries, "Số đơn");
         dataSet.setColor(0xFF60A5FA);          // Xanh dương
@@ -281,8 +276,27 @@ public class AdminReportFragment extends Fragment {
         dataSet.setFillAlpha(80);
 
         binding.lineChartBookings.setData(new LineData(dataSet));
+        configureFiveDayAxis(binding.lineChartBookings.getXAxis());
         binding.lineChartBookings.animateX(600);
         binding.lineChartBookings.invalidate();
+    }
+
+    private void configureFiveDayAxis(XAxis axis) {
+        int labelCount = revenueBucketLabels.size();
+        axis.setGranularity(1f);
+        axis.setGranularityEnabled(true);
+        axis.setAxisMinimum(labelCount > 0 ? 0.5f : 1f);
+        axis.setAxisMaximum(labelCount > 0 ? labelCount + 0.5f : 1f);
+        axis.setLabelCount(Math.max(1, labelCount), true);
+        axis.setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                int index = Math.round(value) - 1;
+                return index >= 0 && index < revenueBucketLabels.size()
+                        ? revenueBucketLabels.get(index)
+                        : "";
+            }
+        });
     }
 
     @Override

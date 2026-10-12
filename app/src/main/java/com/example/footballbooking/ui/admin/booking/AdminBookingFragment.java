@@ -15,7 +15,6 @@ import com.example.footballbooking.data.model.Booking;
 import com.example.footballbooking.databinding.FragmentAdminBookingBinding;
 import com.example.footballbooking.ui.admin.AdminViewModel;
 import com.example.footballbooking.ui.common.adapter.AdminBookingAdapter;
-import com.example.footballbooking.utils.BookingExpiryWorker;
 import com.example.footballbooking.utils.Constants;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
@@ -51,14 +50,9 @@ public class AdminBookingFragment extends Fragment {
 
         setupRecyclerView();
         setupTabs();
-        // Tự động từ chối đơn quá hạn trước khi tải danh sách
-        final FragmentAdminBookingBinding currentBinding = binding;
-        BookingExpiryWorker.autoRejectExpiredBookings(() -> {
-            if (binding == currentBinding && isAdded() && adminViewModel != null) {
-                observeViewModel();
-                adminViewModel.loadAllBookings();
-            }
-        });
+        // Màn hình giám sát chỉ đọc dữ liệu; không tạo side effect khi mở màn hình.
+        observeViewModel();
+        adminViewModel.loadAllBookings();
     }
 
     private void setupRecyclerView() {

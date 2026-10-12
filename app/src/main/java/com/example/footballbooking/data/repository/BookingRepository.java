@@ -107,7 +107,8 @@ public class BookingRepository {
                 services.add(tx.get(mDb.collection(Constants.COL_SERVICES).document((String) service.get("serviceId"))));
             }
             Pitch currentPitch = pitchDoc.toObject(Pitch.class);
-            if (currentPitch == null || !Constants.PITCH_AVAILABLE.equals(currentPitch.getStatus())) {
+            if (currentPitch == null || !currentPitch.isApprovedForDiscovery()
+                    || !Constants.PITCH_AVAILABLE.equals(currentPitch.getStatus())) {
                 throw new IllegalStateException("Sân không còn khả dụng");
             }
             if (currentPitch.getBookingPolicyVersion() != 2) {

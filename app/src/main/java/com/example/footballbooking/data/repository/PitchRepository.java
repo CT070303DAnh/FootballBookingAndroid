@@ -70,7 +70,8 @@ public class PitchRepository {
                     List<Pitch> pitches = new java.util.ArrayList<>();
                     for (com.google.firebase.firestore.DocumentSnapshot doc : snapshots) {
                         Pitch p = doc.toObject(Pitch.class);
-                        if (p != null && !Constants.PITCH_MAINTENANCE.equals(p.getStatus())
+                        if (p != null && p.isApprovedForDiscovery()
+                                && !Constants.PITCH_MAINTENANCE.equals(p.getStatus())
                                 && !Constants.PITCH_CLOSED.equals(p.getStatus())) {
                             pitches.add(p);
                         }
@@ -105,7 +106,8 @@ public class PitchRepository {
                     if (snapshots != null) {
                         for (com.google.firebase.firestore.DocumentSnapshot doc : snapshots) {
                             Pitch p = doc.toObject(Pitch.class);
-                            if (p != null && !Constants.PITCH_MAINTENANCE.equals(p.getStatus())
+                            if (p != null && p.isApprovedForDiscovery()
+                                    && !Constants.PITCH_MAINTENANCE.equals(p.getStatus())
                                     && !Constants.PITCH_CLOSED.equals(p.getStatus())) {
                                 pitches.add(p);
                             }
@@ -169,7 +171,8 @@ public class PitchRepository {
                 .addOnSuccessListener(snapshots -> {
                     if (generation != listGeneration) return;
                     List<Pitch> pitches = snapshots.toObjects(Pitch.class);
-                    pitches.removeIf(p -> !Constants.PITCH_AVAILABLE.equals(p.getStatus()));
+                    pitches.removeIf(p -> !p.isApprovedForDiscovery()
+                            || !Constants.PITCH_AVAILABLE.equals(p.getStatus()));
                     result.setValue(Resource.success(pitches));
                 })
                 .addOnFailureListener(e -> {

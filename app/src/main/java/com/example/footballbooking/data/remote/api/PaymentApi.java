@@ -17,6 +17,10 @@ public interface PaymentApi {
     @POST("payments/payos/sessions/{paymentRef}/reconcile")
     Call<Session> reconcile(@Header("Authorization") String authorization, @Path("paymentRef") String paymentRef);
 
+    @POST("payments/cash/confirm")
+    Call<CashConfirmation> confirmCashPayment(@Header("Authorization") String authorization,
+                                               @Body CashConfirmRequest request);
+
     @Keep
     class CreateRequest {
         @SerializedName("bookingId") public final String bookingId;
@@ -33,5 +37,18 @@ public interface PaymentApi {
         @SerializedName("accountName") public String accountName;
         @SerializedName("accountNumber") public String accountNumber;
         @SerializedName("amount") public long amount;
+    }
+
+    @Keep
+    class CashConfirmRequest {
+        @SerializedName("bookingId") public final String bookingId;
+        public CashConfirmRequest(String bookingId) { this.bookingId = bookingId; }
+    }
+
+    @Keep
+    class CashConfirmation {
+        @SerializedName("ok") public boolean ok;
+        @SerializedName("bookingId") public String bookingId;
+        @SerializedName("paymentStatus") public String paymentStatus;
     }
 }

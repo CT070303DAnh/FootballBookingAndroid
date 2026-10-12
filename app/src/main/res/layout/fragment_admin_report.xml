@@ -82,7 +82,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="vertical" android:padding="14dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="📋 Tổng đơn trong tháng" android:textColor="@color/text_secondary"
+                        android:text="📋 Đơn đã thu tiền trong tháng" android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                     <TextView android:id="@+id/tv_total_bookings"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
@@ -234,7 +234,7 @@
 
                 <TextView android:id="@+id/tv_revenue_chart_title"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="Doanh thu theo ngày (nghìn đồng)"
+                    android:text="Doanh thu theo mốc 5 ngày (nghìn đồng)"
                     android:textColor="@color/white" android:textSize="14sp"
                     android:textStyle="bold" android:layout_marginBottom="12dp" />
 
@@ -258,7 +258,7 @@
                 android:orientation="vertical" android:padding="16dp">
 
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="Tỷ lệ trạng thái đơn đặt sân"
+                    android:text="Số lượng trạng thái đơn đặt sân"
                     android:textColor="@color/white" android:textSize="14sp"
                     android:textStyle="bold" android:layout_marginBottom="12dp" />
 
@@ -304,6 +304,17 @@
                             android:textColor="@color/text_secondary" android:textSize="12sp"
                             android:layout_marginStart="4dp" tools:text="Từ chối: 6" />
                     </LinearLayout>
+
+                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:layout_marginHorizontal="8dp">
+                        <View android:layout_width="12dp" android:layout_height="12dp"
+                            android:background="@color/status_cancelled" />
+                        <TextView android:id="@+id/tv_legend_cancelled"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary" android:textSize="12sp"
+                            android:layout_marginStart="4dp" tools:text="Hủy: 0" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -321,7 +332,7 @@
 
                 <TextView android:id="@+id/tv_booking_chart_title"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="Số đơn theo ngày"
+                    android:text="Số đơn đã thu tiền theo mốc 5 ngày"
                     android:textColor="@color/white" android:textSize="14sp"
                     android:textStyle="bold" android:layout_marginBottom="12dp" />
 

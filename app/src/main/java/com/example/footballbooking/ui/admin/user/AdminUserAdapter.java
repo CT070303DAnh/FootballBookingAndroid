@@ -22,21 +22,48 @@ public class AdminUserAdapter extends RecyclerView.Adapter<AdminUserAdapter.User
     private List<User> userList = new ArrayList<>();
     private final OnUserStatusChangeListener listener;
     private final java.util.function.Consumer<User> approvalListener;
+    private final java.util.function.Consumer<User> rejectionListener;
+    private final java.util.function.Consumer<User> detailsListener;
+    private final java.util.function.Consumer<User> editListener;
+    private final java.util.function.Consumer<User> deleteListener;
     private boolean approvalInProgress;
+    private boolean statusChangeInProgress;
+    private boolean crudInProgress;
 
     public interface OnUserStatusChangeListener {
         void onStatusChange(User user, String newStatus);
     }
 
-    public AdminUserAdapter(Context context, OnUserStatusChangeListener listener, java.util.function.Consumer<User> approvalListener) {
+    public AdminUserAdapter(Context context, OnUserStatusChangeListener listener,
+                            java.util.function.Consumer<User> approvalListener,
+                            java.util.function.Consumer<User> rejectionListener,
+                            java.util.function.Consumer<User> detailsListener,
+                            java.util.function.Consumer<User> editListener,
+                            java.util.function.Consumer<User> deleteListener) {
         this.context = context;
         this.listener = listener;
         this.approvalListener = approvalListener;
+        this.rejectionListener = rejectionListener;
+        this.detailsListener = detailsListener;
+        this.editListener = editListener;
+        this.deleteListener = deleteListener;
     }
 
     public void setApprovalInProgress(boolean inProgress) {
         if (approvalInProgress == inProgress) return;
         approvalInProgress = inProgress;
+        notifyDataSetChanged();
+    }
+
+    public void setStatusChangeInProgress(boolean inProgress) {
+        if (statusChangeInProgress == inProgress) return;
+        statusChangeInProgress = inProgress;
+        notifyDataSetChanged();
+    }
+
+    public void setCrudInProgress(boolean inProgress) {
+        if (crudInProgress == inProgress) return;
+        crudInProgress = inProgress;
         notifyDataSetChanged();
     }
 
@@ -99,6 +126,13 @@ public class AdminUserAdapter extends RecyclerView.Adapter<AdminUserAdapter.User
                     ? android.view.View.VISIBLE : android.view.View.GONE);
             binding.btnApproveOwner.setEnabled(isActive && !approvalInProgress);
             binding.btnApproveOwner.setOnClickListener(v -> approvalListener.accept(user));
+            binding.btnRejectOwner.setVisibility(Constants.ROLE_OWNER_PENDING.equals(user.getRole())
+                    ? android.view.View.VISIBLE : android.view.View.GONE);
+            binding.btnRejectOwner.setEnabled(isActive && !approvalInProgress);
+            binding.btnRejectOwner.setOnClickListener(v -> rejectionListener.accept(user));
+            binding.btnViewDetails.setOnClickListener(v -> detailsListener.accept(user));
+            binding.btnEditUser.setOnClickListener(v -> editListener.accept(user));
+            binding.btnDeleteUser.setOnClickListener(v -> deleteListener.accept(user));
             binding.tvUserStatus.setText(isActive ? "Active" : "Blocked");
             binding.tvUserStatus.setTextColor(isActive ? Color.parseColor("#4CAF50") : Color.parseColor("#F44336"));
 
@@ -107,12 +141,15 @@ public class AdminUserAdapter extends RecyclerView.Adapter<AdminUserAdapter.User
                 String newStatus = isActive ? Constants.STATUS_BLOCKED : Constants.STATUS_ACTIVE;
                 listener.onStatusChange(user, newStatus);
             });
+            binding.btnToggleStatus.setEnabled(!statusChangeInProgress && !Constants.ROLE_ADMIN.equals(user.getRole()));
+            boolean isAdmin = Constants.ROLE_ADMIN.equals(user.getRole());
+            binding.btnEditUser.setEnabled(!crudInProgress && !isAdmin);
+            binding.btnDeleteUser.setEnabled(!crudInProgress && !isAdmin);
+            binding.getRoot().setOnClickListener(v -> detailsListener.accept(user));
             
             // Prevent admin from blocking themselves
-            if (Constants.ROLE_ADMIN.equals(user.getRole())) {
+            if (isAdmin) {
                 binding.btnToggleStatus.setEnabled(false);
-            } else {
-                binding.btnToggleStatus.setEnabled(true);
             }
         }
     }

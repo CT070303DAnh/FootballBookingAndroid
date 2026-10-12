@@ -22,6 +22,8 @@ import com.google.android.material.snackbar.Snackbar;
 
 import java.util.Calendar;
 import java.util.List;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 /**
  * OwnerPitchFragment — Quản lý và Thêm sân bóng của chủ sân.
@@ -32,6 +34,8 @@ public class OwnerPitchFragment extends Fragment
     private FragmentOwnerPitchBinding binding;
     private OwnerViewModel ownerViewModel;
     private AdminPitchAdapter pitchAdapter;
+    private final NumberFormat currencyFormatter =
+            NumberFormat.getNumberInstance(new Locale("vi", "VN"));
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -102,6 +106,9 @@ public class OwnerPitchFragment extends Fragment
                         .filter(b -> Constants.STATUS_PENDING.equals(b.getBookingStatus()))
                         .count();
                 binding.tvStatPending.setText(String.valueOf(pending));
+                long totalRevenue = (long) ownerViewModel
+                        .calcTotalRevenueAllTime(resource.data);
+                binding.tvStatRevenue.setText(currencyFormatter.format(totalRevenue) + "đ");
             }
         });
 
@@ -116,7 +123,10 @@ public class OwnerPitchFragment extends Fragment
         ownerViewModel.getPitchCreateResult().observe(getViewLifecycleOwner(), resource -> {
             if (resource == null) return;
             if (resource.isSuccess() && resource.data != null) {
-                Snackbar.make(binding.getRoot(), "🎉 Đã lưu sân \"" + resource.data.getName() + "\" thành công!", Snackbar.LENGTH_LONG).show();
+                Snackbar.make(binding.getRoot(),
+                        "🎉 Đã gửi sân \"" + resource.data.getName()
+                                + "\" và đang chờ Admin xét duyệt.",
+                        Snackbar.LENGTH_LONG).show();
             } else if (resource.isError()) {
                 Snackbar.make(binding.getRoot(), "Lỗi thêm sân: " + resource.message, Snackbar.LENGTH_LONG).show();
             }

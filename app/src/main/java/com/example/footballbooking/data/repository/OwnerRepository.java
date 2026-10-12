@@ -6,6 +6,8 @@ import com.example.footballbooking.data.model.Booking;
 import com.example.footballbooking.data.model.Pitch;
 import com.example.footballbooking.utils.Constants;
 import com.example.footballbooking.utils.Resource;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.ListenerRegistration;
@@ -89,6 +91,9 @@ public class OwnerRepository {
         pitch.setOwnerName(ownerName);
         pitch.setOwnerPhone(ownerPhone);
         pitch.setStatus(Constants.PITCH_AVAILABLE);
+        pitch.setModerationStatus(Constants.PITCH_MODERATION_PENDING);
+        pitch.setModerationReason("");
+        pitch.setModerationBy("");
         pitch.setRating(0f);
         pitch.setTotalReviews(0);
 
@@ -112,8 +117,23 @@ public class OwnerRepository {
             return;
         }
         result.setValue(Resource.loading(null));
+        // Chỉ gửi các trường owner được phép sửa; không ghi đè moderationStatus
+        // hoặc các trường rating/chính sách bằng dữ liệu cũ trong client.
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("name", pitch.getName());
+        updates.put("description", pitch.getDescription() == null ? "" : pitch.getDescription());
+        updates.put("type", pitch.getType());
+        updates.put("status", pitch.getStatus());
+        updates.put("address", pitch.getAddress());
+        updates.put("location", pitch.getLocation());
+        updates.put("imageUrls", pitch.getImageUrls() == null ? java.util.Collections.emptyList() : pitch.getImageUrls());
+        updates.put("amenities", pitch.getAmenities() == null ? java.util.Collections.emptyList() : pitch.getAmenities());
+        updates.put("basePrice", pitch.getBasePrice());
+        updates.put("ownerName", pitch.getOwnerName() == null ? "" : pitch.getOwnerName());
+        updates.put("ownerPhone", pitch.getOwnerPhone() == null ? "" : pitch.getOwnerPhone());
+        updates.put("updatedAt", FieldValue.serverTimestamp());
         mDb.collection(Constants.COL_PITCHES).document(pitch.getPitchId())
-                .set(pitch)
+                .update(updates)
                 .addOnSuccessListener(v -> result.setValue(Resource.success(true)))
                 .addOnFailureListener(e -> result.setValue(
                         Resource.error(e.getMessage(), false)));
@@ -135,7 +155,8 @@ public class OwnerRepository {
                         result.setValue(Resource.error("Không có quyền thao tác", false));
                         return;
                     }
-                    doc.getReference().update("status", Constants.PITCH_CLOSED)
+                    doc.getReference().update("status", Constants.PITCH_CLOSED,
+                                    "updatedAt", FieldValue.serverTimestamp())
                             .addOnSuccessListener(v -> result.setValue(Resource.success(true)))
                             .addOnFailureListener(e -> result.setValue(
                                     Resource.error(e.getMessage(), false)));
@@ -165,6 +186,7 @@ public class OwnerRepository {
                             Map<String, Object> update = new HashMap<>();
                             update.put("imageUrls",
                                     com.google.firebase.firestore.FieldValue.arrayUnion(uri.toString()));
+                            update.put("updatedAt", FieldValue.serverTimestamp());
                             mDb.collection(Constants.COL_PITCHES).document(pitchId)
                                     .update(update)
                                     .addOnSuccessListener(v -> result.setValue(
@@ -276,16 +298,44 @@ public class OwnerRepository {
             return;
         }
         result.setValue(Resource.loading(null));
-        Map<String, Object> update = new HashMap<>();
-        update.put("paymentStatus", Constants.PAYMENT_PAID);
-        update.put("paymentConfirmedBy", ownerId);
-        update.put("paymentConfirmedAt", FieldValue.serverTimestamp());
-        update.put("updatedAt", FieldValue.serverTimestamp());
-        mDb.collection(Constants.COL_BOOKINGS).document(booking.getBookingId())
-                .update(update)
-                .addOnSuccessListener(v -> result.setValue(Resource.success(true)))
-                .addOnFailureListener(e -> result.setValue(
-                        Resource.error("Xác nhận thanh toán thất bại: " + e.getMessage(), false)));
+        // Payment fields are protected by Firestore Rules. Settlement must be
+        // performed by the trusted backend, not by a client-side update.
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null || !ownerId.equals(user.getUid())) {
+            result.setValue(Resource.error("Phiên đăng nhập chủ sân không hợp lệ", false));
+            return;
+        }
+        user.getIdToken(false).addOnCompleteListener(tokenTask -> {
+            if (!tokenTask.isSuccessful() || tokenTask.getResult() == null
+                    || tokenTask.getResult().getToken() == null) {
+                result.setValue(Resource.error("Không xác thực được chủ sân", false));
+                return;
+            }
+            com.example.footballbooking.data.remote.api.PaymentApi api =
+                    com.example.footballbooking.data.remote.RetrofitClient.getInstance().getPaymentApi();
+            api.confirmCashPayment(
+                    "Bearer " + tokenTask.getResult().getToken(),
+                    new com.example.footballbooking.data.remote.api.PaymentApi.CashConfirmRequest(
+                            booking.getBookingId()))
+                    .enqueue(new retrofit2.Callback<com.example.footballbooking.data.remote.api.PaymentApi.CashConfirmation>() {
+                        @Override
+                        public void onResponse(retrofit2.Call<com.example.footballbooking.data.remote.api.PaymentApi.CashConfirmation> call,
+                                               retrofit2.Response<com.example.footballbooking.data.remote.api.PaymentApi.CashConfirmation> response) {
+                            if (response.isSuccessful() && response.body() != null && response.body().ok) {
+                                result.setValue(Resource.success(true));
+                            } else {
+                                result.setValue(Resource.error(
+                                        "Xác nhận thanh toán thất bại (HTTP " + response.code() + ")", false));
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(retrofit2.Call<com.example.footballbooking.data.remote.api.PaymentApi.CashConfirmation> call,
+                                              Throwable error) {
+                            result.setValue(Resource.error("Không thể kết nối máy chủ thanh toán", false));
+                        }
+                    });
+        });
     }
 
     /**

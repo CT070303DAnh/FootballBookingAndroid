@@ -20,6 +20,27 @@ python -m pip install -r requirements.txt
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
+### Seed tài khoản mẫu bằng Firebase Admin SDK
+
+Không chạy seeder từ Android. Script dưới đây chạy bằng service account ở
+backend, nên không cần nới lỏng Firestore Security Rules:
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+python -m tools.seed_demo_users --project androidbookingfootballai --password 123456
+python -m tools.seed_demo_users --project androidbookingfootballai --password 123456 --apply
+```
+
+Lệnh đầu chỉ kiểm tra (dry-run). Lệnh thứ hai tạo hoặc đồng bộ:
+`admin@test.com`, `owner1@test.com`, `owner2@test.com`, `owner3@test.com` và
+`customer@test.com`. Tài khoản Auth đã tồn tại sẽ được dùng lại; script không
+đổi mật khẩu cũ trừ khi thêm `--reset-password`. Nếu profile hiện có role khác,
+script sẽ dừng để tránh ghi đè; chỉ dùng `--force-profile` khi đã kiểm tra kỹ.
+
+Service account phải được cấu hình qua `GOOGLE_APPLICATION_CREDENTIALS` trong
+`backend/.env` và file JSON phải nằm ngoài repository.
+
 Check `http://127.0.0.1:8000/health` before testing PayOS. PayOS return,
 cancel and webhook URLs must use a public HTTPS tunnel/domain. After the
 backend and tunnel are running, register the webhook once:

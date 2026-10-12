@@ -67,7 +67,7 @@ public class OwnerReportFragment extends Fragment {
         binding.layoutAdminKpis.setVisibility(View.GONE);
         binding.layoutOwnerKpis.setVisibility(View.VISIBLE);
         binding.tvRevenueChartTitle.setText("Doanh thu theo mốc 5 ngày (nghìn đồng)");
-        binding.tvBookingChartTitle.setText("Số đơn theo mốc 5 ngày");
+        binding.tvBookingChartTitle.setText("Số đơn đã thu tiền theo mốc 5 ngày");
         // Chủ sân không cần biểu đồ tỷ lệ trạng thái đơn.
         binding.cardStatusDistribution.setVisibility(View.GONE);
         binding.cardBookingsByDay.setVisibility(View.VISIBLE);
@@ -117,7 +117,7 @@ public class OwnerReportFragment extends Fragment {
     private void bindData(List<Booking> bookings) {
         double total = ownerViewModel.calcTotalRevenue(bookings);
         binding.tvTotalRevenue.setText(currencyFmt.format((long) total) + "đ");
-        binding.tvTotalBookings.setText(bookings.size() + " đơn");
+        binding.tvTotalBookings.setText(ownerViewModel.countRevenueBookings(bookings) + " đơn");
         binding.tvRevenueBookings.setText(ownerViewModel.countRevenueBookings(bookings) + " đơn");
         binding.tvUnpaidBookings.setText(ownerViewModel.countUnpaidApprovedBookings(bookings) + " đơn");
 

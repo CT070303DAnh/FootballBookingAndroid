@@ -17,6 +17,7 @@ import com.example.footballbooking.utils.Constants;
 
 import java.text.NumberFormat;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * AdminPitchAdapter — Hiển thị danh sách sân với nút Edit / Delete.
@@ -41,8 +42,10 @@ public class AdminPitchAdapter
                 }
                 @Override
                 public boolean areContentsTheSame(@NonNull Pitch o, @NonNull Pitch n) {
-                    return o.getName().equals(n.getName())
-                            && o.getStatus().equals(n.getStatus())
+                    return Objects.equals(o.getName(), n.getName())
+                            && Objects.equals(o.getStatus(), n.getStatus())
+                            && Objects.equals(o.getModerationStatus(), n.getModerationStatus())
+                            && Objects.equals(o.getModerationReason(), n.getModerationReason())
                             && o.getBasePrice() == n.getBasePrice();
                 }
             };
@@ -80,20 +83,35 @@ public class AdminPitchAdapter
                     + "  (" + pitch.getTotalReviews() + " đánh giá)");
             b.chipAdminPitchType.setText("Sân " + pitch.getType() + " người");
 
-            // Status chip
-            switch (pitch.getStatus() != null ? pitch.getStatus() : "") {
-                case Constants.PITCH_AVAILABLE:
-                    b.chipAdminPitchStatus.setText("Hoạt động");
-                    b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_approved);
-                    break;
-                case Constants.PITCH_MAINTENANCE:
-                    b.chipAdminPitchStatus.setText("Bảo trì");
-                    b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_pending);
-                    break;
-                default:
-                    b.chipAdminPitchStatus.setText("Đóng");
-                    b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_cancelled);
-                    break;
+            // Trạng thái kiểm duyệt phải được ưu tiên hơn status vận hành.
+            String moderation = pitch.getEffectiveModerationStatus();
+            if (Constants.PITCH_MODERATION_PENDING.equals(moderation)) {
+                b.chipAdminPitchStatus.setText("Đang chờ duyệt");
+                b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_pending);
+            } else if (Constants.PITCH_MODERATION_REJECTED.equals(moderation)) {
+                b.chipAdminPitchStatus.setText("Đã bị từ chối");
+                b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_rejected);
+            } else if (Constants.PITCH_MODERATION_SUSPENDED.equals(moderation)) {
+                b.chipAdminPitchStatus.setText("Đang bị khóa");
+                b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_rejected);
+            } else if (Constants.PITCH_MODERATION_ARCHIVED.equals(moderation)) {
+                b.chipAdminPitchStatus.setText("Đã bị ẩn");
+                b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_cancelled);
+            } else {
+                switch (pitch.getStatus() != null ? pitch.getStatus() : "") {
+                    case Constants.PITCH_AVAILABLE:
+                        b.chipAdminPitchStatus.setText("Hoạt động");
+                        b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_approved);
+                        break;
+                    case Constants.PITCH_MAINTENANCE:
+                        b.chipAdminPitchStatus.setText("Bảo trì");
+                        b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_pending);
+                        break;
+                    default:
+                        b.chipAdminPitchStatus.setText("Đã đóng");
+                        b.chipAdminPitchStatus.setChipBackgroundColorResource(R.color.status_cancelled);
+                        break;
+                }
             }
 //test
             // Thumbnail

@@ -211,7 +211,7 @@ public class OwnerViewModel extends ViewModel {
         int daysInMonth = getDaysInReportMonth();
         for (int bucket : getRevenueBuckets(bookings)) {
             int startDay = ((bucket - 1) * 5) + 1;
-            int endDay = Math.min(startDay + 4, daysInMonth);
+            int endDay = bucket == 6 ? daysInMonth : Math.min(startDay + 4, daysInMonth);
             labels.add(startDay + "-" + endDay);
         }
         return labels;
@@ -260,6 +260,18 @@ public class OwnerViewModel extends ViewModel {
         if (bookings == null) return 0;
         double total = 0;
         for (Booking b : bookings) if (isRevenueBooking(b)) total += b.getTotalAmount();
+        return total;
+    }
+
+    /** Tổng tiền đã thu từ trước đến nay của tất cả sân thuộc owner. */
+    public double calcTotalRevenueAllTime(List<Booking> bookings) {
+        if (bookings == null) return 0;
+        double total = 0;
+        for (Booking booking : bookings) {
+            if (com.example.footballbooking.utils.RevenuePolicy.includesPaidBooking(booking)) {
+                total += booking.getTotalAmount();
+            }
+        }
         return total;
     }
 

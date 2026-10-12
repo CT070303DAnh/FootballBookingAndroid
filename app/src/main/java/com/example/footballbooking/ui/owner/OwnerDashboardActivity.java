@@ -3,6 +3,9 @@ package com.example.footballbooking.ui.owner;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
@@ -37,11 +40,30 @@ public class OwnerDashboardActivity extends AppCompatActivity {
         binding = ActivityOwnerDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        applySystemBarInsets();
         ownerViewModel = new ViewModelProvider(this).get(OwnerViewModel.class);
 
         loadCurrentUserAndInit();
         setupNavigation();
         setupLogout();
+    }
+
+    private void applySystemBarInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarOwner, (view, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+            view.setPadding(view.getPaddingLeft(), systemBars.top,
+                    view.getPaddingRight(), view.getPaddingBottom());
+            return insets;
+        });
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.bottomNavOwner, (view, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+            view.setPadding(view.getPaddingLeft(), view.getPaddingTop(),
+                    view.getPaddingRight(), systemBars.bottom);
+            return insets;
+        });
+
+        ViewCompat.requestApplyInsets(binding.getRoot());
     }
 
     private void setupLogout() {

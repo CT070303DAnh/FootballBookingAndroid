@@ -22,6 +22,17 @@ public class User {
     private String fcmToken;    // FCM token để gửi push notification
     private String status = Constants.STATUS_ACTIVE; // "active" hoặc "blocked"
 
+    // Thông tin kiểm duyệt đăng ký chủ sân
+    private String ownerApplicationStatus;
+    private String ownerDecisionReason;
+    private String ownerReviewedBy;
+    private Timestamp ownerReviewedAt;
+
+    // Nhật ký khóa/mở khóa tài khoản
+    private String statusReason;
+    private String statusChangedBy;
+    private Timestamp statusChangedAt;
+
     @ServerTimestamp
     private Timestamp createdAt;
     @ServerTimestamp
@@ -45,6 +56,8 @@ public class User {
         this.avatarUrl = "";
         this.fcmToken = "";
         this.status = Constants.STATUS_ACTIVE;
+        this.ownerApplicationStatus = Constants.ROLE_OWNER_PENDING.equals(role)
+                ? Constants.OWNER_APPLICATION_PENDING : null;
     }
 
     // --- Getters & Setters ---
@@ -79,6 +92,31 @@ public class User {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getOwnerApplicationStatus() { return ownerApplicationStatus; }
+    public void setOwnerApplicationStatus(String ownerApplicationStatus) {
+        this.ownerApplicationStatus = ownerApplicationStatus;
+    }
+
+    public String getOwnerDecisionReason() { return ownerDecisionReason; }
+    public void setOwnerDecisionReason(String ownerDecisionReason) {
+        this.ownerDecisionReason = ownerDecisionReason;
+    }
+
+    public String getOwnerReviewedBy() { return ownerReviewedBy; }
+    public void setOwnerReviewedBy(String ownerReviewedBy) { this.ownerReviewedBy = ownerReviewedBy; }
+
+    public Timestamp getOwnerReviewedAt() { return ownerReviewedAt; }
+    public void setOwnerReviewedAt(Timestamp ownerReviewedAt) { this.ownerReviewedAt = ownerReviewedAt; }
+
+    public String getStatusReason() { return statusReason; }
+    public void setStatusReason(String statusReason) { this.statusReason = statusReason; }
+
+    public String getStatusChangedBy() { return statusChangedBy; }
+    public void setStatusChangedBy(String statusChangedBy) { this.statusChangedBy = statusChangedBy; }
+
+    public Timestamp getStatusChangedAt() { return statusChangedAt; }
+    public void setStatusChangedAt(Timestamp statusChangedAt) { this.statusChangedAt = statusChangedAt; }
 
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }

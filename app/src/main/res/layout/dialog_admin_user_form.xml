@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="8dp">
+
+    <EditText
+        android:id="@+id/etAdminUserName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Họ và tên"
+        android:inputType="textCapWords"
+        android:maxLength="120" />
+
+    <EditText
+        android:id="@+id/etAdminUserEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="Email đăng nhập"
+        android:inputType="textEmailAddress"
+        android:maxLength="254" />
+
+    <EditText
+        android:id="@+id/etAdminUserPhone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="Số điện thoại"
+        android:inputType="phone"
+        android:maxLength="30" />
+
+    <EditText
+        android:id="@+id/etAdminUserPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="Mật khẩu"
+        android:inputType="textPassword"
+        android:maxLength="128" />
+
+    <TextView
+        android:id="@+id/tvAdminUserPasswordHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tối thiểu 6 ký tự. Khi sửa, để trống nếu không đổi."
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp" />
+
+    <Spinner
+        android:id="@+id/spinnerAdminUserRole"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:contentDescription="Vai trò tài khoản" />
+
+</LinearLayout>

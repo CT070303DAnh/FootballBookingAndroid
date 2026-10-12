@@ -78,7 +78,8 @@ public class PitchDetailActivity extends AppCompatActivity {
     private void setupClickListeners() {
         binding.btnBookNow.setOnClickListener(v -> {
             if (currentPitch == null) return;
-            if (!Constants.PITCH_AVAILABLE.equals(currentPitch.getStatus())) {
+            if (!currentPitch.isApprovedForDiscovery()
+                    || !Constants.PITCH_AVAILABLE.equals(currentPitch.getStatus())) {
                 Snackbar.make(v, "Sân hiện không khả dụng", Snackbar.LENGTH_SHORT).show();
                 return;
             }
@@ -173,7 +174,7 @@ public class PitchDetailActivity extends AppCompatActivity {
         binding.chipPitchType.setText("Sân " + pitch.getType() + " người");
 
         // Status
-        if (Constants.PITCH_AVAILABLE.equals(pitch.getStatus())) {
+        if (pitch.isApprovedForDiscovery() && Constants.PITCH_AVAILABLE.equals(pitch.getStatus())) {
             binding.chipStatus.setText("✓ Còn sân");
             binding.chipStatus.setChipBackgroundColorResource(
                     com.example.footballbooking.R.color.status_approved);

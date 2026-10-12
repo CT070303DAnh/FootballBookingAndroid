@@ -27,6 +27,10 @@ public class Pitch {
     private String ownerId;
     private String ownerName;       // Denormalized — tránh extra query
     private String ownerPhone;      // SĐT chủ sân hiển thị cho customer
+    private String moderationStatus;
+    private String moderationReason;
+    private String moderationBy;
+    private Timestamp moderationAt;
     private int bookingPolicyVersion;
     private boolean useDefaultSlots;
 
@@ -87,6 +91,18 @@ public class Pitch {
     public String getOwnerPhone() { return ownerPhone; }
     public void setOwnerPhone(String ownerPhone) { this.ownerPhone = ownerPhone; }
 
+    public String getModerationStatus() { return moderationStatus; }
+    public void setModerationStatus(String moderationStatus) { this.moderationStatus = moderationStatus; }
+
+    public String getModerationReason() { return moderationReason; }
+    public void setModerationReason(String moderationReason) { this.moderationReason = moderationReason; }
+
+    public String getModerationBy() { return moderationBy; }
+    public void setModerationBy(String moderationBy) { this.moderationBy = moderationBy; }
+
+    public Timestamp getModerationAt() { return moderationAt; }
+    public void setModerationAt(Timestamp moderationAt) { this.moderationAt = moderationAt; }
+
     public int getBookingPolicyVersion() { return bookingPolicyVersion; }
     public void setBookingPolicyVersion(int version) { bookingPolicyVersion = version; }
     public boolean getUseDefaultSlots() { return useDefaultSlots; }
@@ -102,6 +118,20 @@ public class Pitch {
     @com.google.firebase.firestore.Exclude
     public boolean isAvailable() {
         return "available".equals(this.status);
+    }
+
+    /** Old documents without moderationStatus remain visible as approved. */
+    @com.google.firebase.firestore.Exclude
+    public String getEffectiveModerationStatus() {
+        return moderationStatus == null || moderationStatus.trim().isEmpty()
+                ? com.example.footballbooking.utils.Constants.PITCH_MODERATION_APPROVED
+                : moderationStatus;
+    }
+
+    @com.google.firebase.firestore.Exclude
+    public boolean isApprovedForDiscovery() {
+        return com.example.footballbooking.utils.Constants.PITCH_MODERATION_APPROVED
+                .equals(getEffectiveModerationStatus());
     }
 
     @com.google.firebase.firestore.Exclude

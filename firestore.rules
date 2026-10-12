@@ -1,188 +1,537 @@
 // ============================================================
 // FIRESTORE SECURITY RULES — Football Pitch Booking AI
 // ============================================================
-// Deploy: Firebase Console → Firestore → Rules → Paste → Publish
-// Hoặc CLI: firebase deploy --only firestore:rules
+// Mục tiêu:
+// - Không cho client tự nâng quyền thành owner/admin.
+// - Hồ sơ người dùng là dữ liệu riêng tư.
+// - Booking và availability phải được ghi nguyên tử cùng nhau.
+// - Giá, chủ sân và trạng thái thanh toán không thể bị client giả mạo.
+// - Payment sessions / transaction records chỉ backend được truy cập.
 //
-// MÔ HÌNH PHÂN QUYỀN 3 ROLES:
-//   customer       → Đặt sân, xem sân, viết review
-//   owner          → CRUD sân của mình, duyệt đơn trên sân mình
-//   admin          → Toàn quyền
-//   owner_pending  → Chỉ đọc profile, chờ admin duyệt
+// Admin đầu tiên phải được cấp bằng Firebase Console hoặc Firebase Admin SDK.
+// Deploy: firebase deploy --only firestore:rules
 // ============================================================
+
+// Assumed data model for pitch moderation:
+// pitches/{pitchId}: ownerId, name, address, type (5/7/11), basePrice,
+// status (available/maintenance/closed), moderationStatus
+// (pending/approved/rejected/suspended/archived), moderationReason,
+// moderationBy, moderationAt, createdAt and updatedAt.
+// ownerId, rating, review counters and booking policy fields are immutable
+// for owners. Admin moderation metadata is written with server timestamps.
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ===== HELPER FUNCTIONS =====
-
-    // Kiểm tra user đã đăng nhập
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Lấy role của user hiện tại
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function currentUser() {
+      return userDoc(request.auth.uid);
+    }
+
+    function isActiveUser() {
+      return isAuthenticated()
+        && currentUser().data.get('status', 'active') == 'active';
+    }
+
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return currentUser().data.role;
     }
 
-    // Kiểm tra user là Admin
     function isAdmin() {
-      return isAuthenticated() && getUserRole() == 'admin';
+      return isActiveUser() && getUserRole() == 'admin';
     }
 
-    // Kiểm tra user là Owner (đã duyệt)
     function isOwner() {
-      return isAuthenticated() && getUserRole() == 'owner';
+      return isActiveUser() && getUserRole() == 'owner';
     }
 
-    // Kiểm tra user là Customer
     function isCustomer() {
-      return isAuthenticated() && getUserRole() == 'customer';
+      return isActiveUser() && getUserRole() == 'customer';
     }
 
-    // Kiểm tra đúng chủ tài khoản
+    function validPitchModeration(data) {
+      return data.get('moderationStatus', 'approved') in [
+          'pending', 'approved', 'rejected', 'suspended', 'archived'
+        ]
+        && data.get('moderationReason', '') is string
+        && data.get('moderationReason', '').size() <= 500
+        && data.get('moderationBy', '') is string
+        && (data.get('moderationAt', null) == null
+          || data.moderationAt is timestamp);
+    }
+
+    function validAdminPitchUpdate() {
+      return isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'description', 'type', 'address', 'location', 'imageUrls',
+          'amenities', 'basePrice', 'updatedAt', 'moderationStatus',
+          'moderationReason', 'moderationBy', 'moderationAt'
+        ])
+        && request.resource.data.get('ownerId', '') == resource.data.get('ownerId', '')
+        && request.resource.data.get('pitchId', '') == resource.data.get('pitchId', '')
+        && request.resource.data.get('name', '') is string
+        && request.resource.data.get('name', '').size() > 0
+        && request.resource.data.get('name', '').size() <= 120
+        && request.resource.data.get('description', '') is string
+        && request.resource.data.get('description', '').size() <= 2000
+        && request.resource.data.get('type', '') in ['5', '7', '11']
+        && request.resource.data.get('address', '') is string
+        && request.resource.data.get('address', '').size() > 0
+        && request.resource.data.get('address', '').size() <= 300
+        && request.resource.data.get('basePrice', -1) is number
+        && request.resource.data.get('basePrice', -1) >= 0
+        && request.resource.data.get('basePrice', -1) <= 10000000
+        && request.resource.data.get('imageUrls', []) is list
+        && request.resource.data.get('imageUrls', []).size() <= 20
+        && request.resource.data.get('amenities', []) is list
+        && request.resource.data.get('amenities', []).size() <= 30
+        && validPitchModeration(request.resource.data)
+        && request.resource.data.updatedAt == request.time
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'moderationAt'])
+            || request.resource.data.moderationAt == request.time)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'moderationBy'])
+            || request.resource.data.moderationBy == request.auth.uid)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'moderationStatus'])
+            || request.resource.data.moderationStatus in [
+              'pending', 'approved', 'rejected', 'suspended', 'archived'
+            ]);
+    }
+
+    function validOwnerPitchUpdate() {
+      return isActiveUser()
+        && isOwner()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'description', 'type', 'status', 'address', 'location',
+          'imageUrls', 'amenities', 'basePrice', 'ownerName', 'ownerPhone',
+          'updatedAt'
+        ])
+        && request.resource.data.get('name', '') is string
+        && request.resource.data.get('name', '').size() > 0
+        && request.resource.data.get('name', '').size() <= 120
+        && request.resource.data.get('description', '') is string
+        && request.resource.data.get('description', '').size() <= 2000
+        && request.resource.data.get('type', '') in ['5', '7', '11']
+        && request.resource.data.get('status', '') in ['available', 'maintenance', 'closed']
+        && request.resource.data.get('address', '') is string
+        && request.resource.data.get('address', '').size() > 0
+        && request.resource.data.get('address', '').size() <= 300
+        && request.resource.data.get('ownerName', '') is string
+        && request.resource.data.get('ownerName', '').size() <= 120
+        && request.resource.data.get('ownerPhone', '') is string
+        && request.resource.data.get('ownerPhone', '').size() <= 30
+        && request.resource.data.get('basePrice', -1) is number
+        && request.resource.data.get('basePrice', -1) >= 0
+        && request.resource.data.get('basePrice', -1) <= 10000000
+        && request.resource.data.get('imageUrls', []) is list
+        && request.resource.data.get('imageUrls', []).size() <= 20
+        && request.resource.data.get('amenities', []) is list
+        && request.resource.data.get('amenities', []).size() <= 30
+        && request.resource.data.get('moderationStatus', 'approved')
+          == resource.data.get('moderationStatus', 'approved')
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validAdminUserUpdate(userId) {
+      return isAdmin()
+        && request.auth.uid != userId
+        && resource.data.get('role', 'customer') != 'admin'
+        && request.resource.data.get('role', 'customer') != 'admin'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'role', 'status', 'updatedAt',
+          'ownerApplicationStatus', 'ownerDecisionReason',
+          'ownerReviewedBy', 'ownerReviewedAt',
+          'statusReason', 'statusChangedBy', 'statusChangedAt'
+        ])
+        && request.resource.data.get('role', 'customer') in [
+          'customer', 'owner_pending', 'owner', 'admin'
+        ]
+        && request.resource.data.get('status', 'active') in ['active', 'blocked']
+        && request.resource.data.get('ownerApplicationStatus', '') in [
+          '', 'pending', 'approved', 'rejected'
+        ]
+        && request.resource.data.get('ownerDecisionReason', '') is string
+        && request.resource.data.get('ownerDecisionReason', '').size() <= 500
+        && request.resource.data.get('statusReason', '') is string
+        && request.resource.data.get('statusReason', '').size() <= 500
+        && request.resource.data.get('ownerReviewedBy', '') is string
+        && request.resource.data.get('statusChangedBy', '') is string
+        && (request.resource.data.get('ownerReviewedAt', null) == null
+          || request.resource.data.ownerReviewedAt is timestamp)
+        && (request.resource.data.get('statusChangedAt', null) == null
+          || request.resource.data.statusChangedAt is timestamp)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerReviewedAt'])
+          || request.resource.data.ownerReviewedAt == request.time)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['statusChangedAt'])
+          || request.resource.data.statusChangedAt == request.time)
+        && (
+          request.resource.data.get('ownerReviewedBy', '') == ''
+          || request.resource.data.ownerReviewedBy == request.auth.uid
+        )
+        && (
+          request.resource.data.get('statusChangedBy', '') == ''
+          || request.resource.data.statusChangedBy == request.auth.uid
+        );
+    }
+
     function isOwnerOf(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Calendar strings are interpreted in Vietnam time.
+    function startOfBooking(b) {
+      let d = b.bookingDate.split('-');
+      let t = b.startTime.split(':');
+      return timestamp.date(int(d[0]), int(d[1]), int(d[2]))
+        + duration.value(int(t[0]) * 60 + int(t[1]) - 420, 'm');
+    }
 
-    // ===== COLLECTION: users =====
+    function defaultSlot(id) {
+      return {
+        'slot_1': ['06:00', '07:30', 0],
+        'slot_2': ['07:30', '09:00', 0],
+        'slot_3': ['09:00', '10:30', 0],
+        'slot_4': ['14:00', '15:30', 0],
+        'slot_5': ['15:30', '17:00', 0],
+        'slot_6': ['17:00', '18:30', 30000],
+        'slot_7': ['18:30', '20:00', 50000],
+        'slot_8': ['20:00', '21:30', 50000],
+        'slot_9': ['21:30', '23:00', 0]
+      }.get(id, ['', '', -1]);
+    }
+
+    function isFixedNinetyMinutes(start, end) {
+      let s = start.split(':');
+      let e = end.split(':');
+      return start.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && end.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && int(e[0]) * 60 + int(e[1]) == int(s[0]) * 60 + int(s[1]) + 90;
+    }
+
+    function validSlot(b) {
+      let path = /databases/$(database)/documents/pitches/$(b.pitchId)/timeSlots/$(b.slotId);
+      let fallback = defaultSlot(b.slotId);
+      let configured = exists(path);
+      let slot = configured ? get(path).data : {
+        'startTime': fallback[0], 'endTime': fallback[1],
+        'surcharge': fallback[2], 'isPeakHour': true,
+        'isActive': fallback[2] >= 0
+      };
+      return slot.get('isActive', false) == true
+        && (configured
+            ? isFixedNinetyMinutes(slot.startTime, slot.endTime)
+            : fallback[0] != '' && fallback[1] != '')
+        && b.startTime == slot.startTime
+        && b.endTime == slot.endTime
+        && (configured
+            || get(/databases/$(database)/documents/pitches/$(b.pitchId)).data.get('useDefaultSlots', false))
+        && b.surcharge == (slot.get('isPeakHour', false) ? slot.surcharge : 0)
+        && b.surcharge >= 0;
+    }
+
+    function catalogServicePrice(s) {
+      let data = get(/databases/$(database)/documents/services/$(s.serviceId)).data;
+      return (
+        data.isActive == true
+        && data.price is number
+        && data.price >= 0
+        && s.serviceName == data.name
+        && s.price == data.price
+        ? data.price : -1);
+    }
+
+    function servicePrice(services, i) {
+      return services.size() > i ? catalogServicePrice(services[i]) : 0;
+    }
+
+    function validPrices(b) {
+      let p = get(/databases/$(database)/documents/pitches/$(b.pitchId)).data;
+      let a = servicePrice(b.services, 0);
+      let c = servicePrice(b.services, 1);
+      let d = servicePrice(b.services, 2);
+      let e = servicePrice(b.services, 3);
+      let f = servicePrice(b.services, 4);
+      return p.get('bookingPolicyVersion', 0) == 2
+        && p.get('moderationStatus', 'approved') == 'approved'
+        && p.status == 'available'
+        && b.pitchOwnerId == p.ownerId
+        && b.pitchName == p.name
+        && b.pitchAddress == p.address
+        && b.pitchType == p.type
+        && b.basePrice is number && b.basePrice >= 0
+        && b.basePrice == p.basePrice
+        && a >= 0 && c >= 0 && d >= 0 && e >= 0 && f >= 0
+        && b.totalServicePrice == a + c + d + e + f
+        && b.totalAmount == b.basePrice + b.surcharge + b.totalServicePrice;
+    }
+
+    function availability(b) {
+      let path = /databases/$(database)/documents/pitches/$(b.pitchId)/availability/$(b.bookingDate);
+      return exists(path)
+        ? get(path).data.get('slots', {}).get(b.slotId, {})
+        : {};
+    }
+
+    function availabilityAfter(b, id, state) {
+      let a = getAfter(/databases/$(database)/documents/pitches/$(b.pitchId)/availability/$(b.bookingDate)).data;
+      return a.date == b.bookingDate
+        && a.lastSlotId == b.slotId
+        && a.slots[b.slotId] == {'status': state, 'bookingId': id};
+    }
+
+    function validNewBooking(b, id) {
+      return b.keys().hasOnly([
+        'bookingId', 'customerId', 'customerName', 'customerPhone',
+        'pitchId', 'pitchName', 'pitchAddress', 'pitchType', 'pitchOwnerId',
+        'bookingDate', 'slotId', 'startTime', 'endTime', 'services',
+        'basePrice', 'surcharge', 'totalServicePrice', 'totalAmount',
+        'paymentStatus', 'paymentMethod', 'vnpayTransactionId',
+        'payosTransactionId', 'bookingStatus', 'matchStatus', 'note',
+        'adminNote', 'createdAt', 'updatedAt'
+      ])
+        && b.bookingId == id
+        && b.customerId == request.auth.uid
+        && b.customerName is string
+        && b.customerPhone is string
+        && b.bookingDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && b.startTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && b.endTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+        && b.startTime < b.endTime
+        && startOfBooking(b) > request.time
+        && b.services is list
+        && b.services.size() <= 5
+        && b.paymentStatus == 'unpaid'
+        && b.paymentMethod in ['cash', 'payos', 'vnpay', 'pay_later']
+        && b.get('vnpayTransactionId', null) == null
+        && b.get('payosTransactionId', null) == null
+        && b.get('adminNote', null) == null
+        && b.bookingStatus == 'pending'
+        && b.matchStatus == 'upcoming'
+        && b.note is string
+        && b.note.size() <= 2000
+        && b.createdAt == request.time
+        && b.updatedAt == request.time
+        && validSlot(b)
+        && validPrices(b)
+        && availabilityAfter(b, id, 'pending');
+    }
+
+    function managesBooking(b) {
+      return isActiveUser() && (isAdmin() || (isOwner()
+        && b.pitchOwnerId == request.auth.uid
+        && get(/databases/$(database)/documents/pitches/$(b.pitchId)).data.ownerId == request.auth.uid));
+    }
+
+    function validBookingUpdate(before, after, id) {
+      let changed = after.diff(before).affectedKeys();
+      let manager = managesBooking(before);
+      return (changed.hasOnly(['bookingStatus', 'adminNote', 'updatedAt'])
+          && after.updatedAt == request.time
+          && availability(before).get('bookingId', '') == id
+          && ((before.bookingStatus == 'pending'
+                && after.bookingStatus in ['approved', 'rejected'] && manager)
+            || (before.bookingStatus in ['pending', 'approved']
+                && after.bookingStatus == 'cancelled'
+                && isActiveUser()
+                && before.customerId == request.auth.uid
+                && changed.hasOnly(['bookingStatus', 'updatedAt'])
+                && startOfBooking(before) > request.time))
+          && availabilityAfter(before,
+              after.bookingStatus == 'approved' ? id : null,
+              after.bookingStatus == 'approved' ? 'booked' : 'available'))
+        || (manager && before.bookingStatus == 'approved'
+          && changed.hasOnly(['matchStatus', 'updatedAt'])
+          && after.matchStatus in ['upcoming', 'playing', 'half_time', 'finished']);
+    }
+
+    function validAvailability(pitchId, dateId, before, after) {
+      let slotId = after.lastSlotId;
+      let old = before.get('slots', {}).get(slotId,
+        {'status': 'available', 'bookingId': null});
+      let next = after.slots[slotId];
+      let id = next.status == 'pending' ? next.bookingId : old.bookingId;
+      let path = /databases/$(database)/documents/bookings/$(id);
+      let b = getAfter(path).data;
+      return isActiveUser()
+        && after.diff(before).affectedKeys().hasOnly(['date', 'slots', 'lastSlotId'])
+        && after.date == dateId
+        && after.slots is map
+        && after.slots.diff(before.get('slots', {})).affectedKeys().hasOnly([slotId])
+        && next.keys().hasOnly(['status', 'bookingId'])
+        && b.pitchId == pitchId
+        && b.bookingDate == dateId
+        && b.slotId == slotId
+        && ((old.status == 'available'
+              && next.status == 'pending'
+              && !exists(path)
+              && b.bookingStatus == 'pending'
+              && next.bookingId == id)
+          || (old.status in ['pending', 'booked']
+              && exists(path)
+              && get(path).data.bookingStatus != b.bookingStatus
+              && ((next.status == 'booked'
+                    && next.bookingId == id
+                    && b.bookingStatus == 'approved')
+                || (next.status == 'available'
+                    && next.bookingId == null
+                    && b.bookingStatus in ['cancelled', 'rejected']))));
+    }
+
+    // ===== USERS =====
     match /users/{userId} {
+      // Contact details and FCM tokens are private.
+      allow get: if isOwnerOf(userId) || isAdmin();
+      allow list: if isAdmin();
 
-      // Ai cũng đọc được profile (cần hiển thị tên chủ sân, avatar...)
-      allow read: if isAuthenticated();
+      // Self-registration can only create a customer or an owner request.
+      allow create: if isOwnerOf(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role in ['customer', 'owner_pending']
+        && request.resource.data.status == 'active';
 
-      // Chỉ chính mình hoặc Admin mới sửa
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwnerOf(userId) || isAdmin();
+      // Own profile edits cannot touch identity, role, status or timestamps.
+      allow update: if (isActiveUser() && isOwnerOf(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'displayName', 'phoneNumber', 'avatarUrl', 'fcmToken', 'updatedAt'
+          ]))
+        || validAdminUserUpdate(userId);
+
       allow delete: if isAdmin();
 
-      // Sub-collection: notifications
       match /notifications/{notifId} {
-        allow read, write: if isOwnerOf(userId) || isAdmin();
+        allow read, write: if (isActiveUser() && isOwnerOf(userId)) || isAdmin();
       }
 
-      // Sub-collection: bookingHistory
       match /bookingHistory/{histId} {
-        allow read: if isOwnerOf(userId) || isAdmin();
-        allow write: if isAuthenticated(); // Hệ thống tự ghi khi đặt sân
+        allow read: if (isActiveUser() && isOwnerOf(userId)) || isAdmin();
+        allow create: if isActiveUser()
+          && isOwnerOf(userId)
+          && request.resource.data == {'bookingRef': histId}
+          && getAfter(/databases/$(database)/documents/bookings/$(histId)).data.customerId == userId;
       }
     }
 
-
-    // ===== COLLECTION: pitches =====
+    // ===== PITCHES =====
     match /pitches/{pitchId} {
+      allow read: if isActiveUser();
 
-      // Tất cả user đã login đều đọc được (Customer cần xem sân)
-      allow read: if isAuthenticated();
-
-      // Admin: toàn quyền CRUD
-      // Owner: chỉ tạo/sửa/xóa sân CÓ ownerId == uid của mình
       allow create: if isAdmin()
-                    || (isOwner() && request.resource.data.ownerId == request.auth.uid);
+        || (isActiveUser() && isOwner()
+          && request.resource.data.ownerId == request.auth.uid
+          && request.resource.data.get('bookingPolicyVersion', 0) == 0
+          && request.resource.data.get('moderationStatus', 'pending') == 'pending');
 
-      allow update: if isAdmin()
-                    || (isOwner() && resource.data.ownerId == request.auth.uid);
+      allow update: if validAdminPitchUpdate() || validOwnerPitchUpdate();
 
-      // Xóa (soft delete via status update — nhưng nếu cần hard delete)
       allow delete: if isAdmin();
 
-      // Sub-collection: timeSlots
       match /timeSlots/{slotId} {
-        allow read: if isAuthenticated();
+        allow read: if isActiveUser();
+        // Schedule changes require temporarily disabling the fixed-slot policy.
         allow write: if isAdmin()
-                     || (isOwner() && get(/databases/$(database)/documents/pitches/$(pitchId)).data.ownerId == request.auth.uid);
+          && getAfter(/databases/$(database)/documents/pitches/$(pitchId)).data
+            .get('bookingPolicyVersion', 0) != 2;
       }
 
-      // Sub-collection: availability (trạng thái slot theo ngày)
       match /availability/{dateId} {
-        allow read: if isAuthenticated();
-        // Hệ thống ghi khi đặt/hủy/duyệt đơn
-        allow write: if isAuthenticated();
-
-        // Nested: từng slot trong ngày
-        match /{slotId} {
-          allow read: if isAuthenticated();
-          allow write: if isAuthenticated();
-        }
+        allow read: if isActiveUser();
+        allow create: if validAvailability(pitchId, dateId, {}, request.resource.data);
+        allow update: if validAvailability(pitchId, dateId, resource.data, request.resource.data);
+        allow delete: if false;
       }
     }
 
-
-    // ===== COLLECTION: bookings =====
+    // ===== BOOKINGS =====
     match /bookings/{bookingId} {
+      allow read: if isActiveUser() && (isAdmin()
+        || resource.data.customerId == request.auth.uid
+        || (isOwner() && resource.data.pitchOwnerId == request.auth.uid));
 
-      // Customer: chỉ đọc đơn CỦA MÌNH
-      // Owner: đọc đơn trên SÂN CỦA MÌNH (pitchOwnerId == uid)
-      // Admin: đọc TẤT CẢ
-      allow read: if isAdmin()
-                  || (isAuthenticated() && resource.data.customerId == request.auth.uid)
-                  || (isOwner() && resource.data.pitchOwnerId == request.auth.uid);
+      allow create: if isCustomer()
+        && validNewBooking(request.resource.data, bookingId);
 
-      // Customer tạo đơn mới (pitchOwnerId được gắn tự động)
-      allow create: if isAuthenticated()
-                    && request.resource.data.customerId == request.auth.uid
-                    && request.resource.data.bookingStatus == 'pending';
-
-      // Cập nhật đơn:
-      // - Admin: toàn quyền update
-      // - Owner: chỉ update đơn trên sân mình (duyệt/từ chối/match status)
-      // - Customer: chỉ hủy đơn của mình (bookingStatus → cancelled)
-      allow update: if isAdmin()
-                    || (isOwner() && resource.data.pitchOwnerId == request.auth.uid)
-                    || (isAuthenticated()
-                        && resource.data.customerId == request.auth.uid
-                        && request.resource.data.bookingStatus == 'cancelled');
-
-      allow delete: if isAdmin();
+      // Only controlled state transitions are client-writable. Financial and
+      // identity fields are immutable from the client.
+      allow update: if validBookingUpdate(resource.data, request.resource.data, bookingId);
+      allow delete: if false;
     }
 
+    // Payment documents are backend-only. The Android client must use the API.
+    match /payment_sessions/{paymentId} {
+      allow read, write: if false;
+    }
 
-    // ===== COLLECTION: reviews =====
+    match /vnpay_transactions/{transactionId} {
+      allow read, write: if false;
+    }
+
+    // ===== REVIEWS =====
     match /reviews/{reviewId} {
+      allow read: if isActiveUser();
 
-      // Ai đã login đều đọc được (hiển thị trên PitchDetail)
-      allow read: if isAuthenticated();
+      allow create: if isCustomer()
+        && request.resource.data.keys().hasOnly([
+          'bookingId', 'customerId', 'customerName', 'customerAvatar',
+          'pitchId', 'rating', 'comment', 'imageUrls', 'createdAt'
+        ])
+        && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.bookingId is string
+        && request.resource.data.pitchId is string
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 1000
+        && exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId))
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.customerId == request.auth.uid
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.pitchId == request.resource.data.pitchId
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.bookingStatus == 'approved'
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.matchStatus == 'finished';
 
-      // Chỉ Customer mới viết review, và phải là chính mình
-      allow create: if isAuthenticated()
-                    && request.resource.data.customerId == request.auth.uid;
+      allow update: if isCustomer()
+        && resource.data.customerId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['rating', 'comment', 'imageUrls']);
 
-      // Chỉ chủ review hoặc Admin mới sửa/xóa
-      allow update: if isAuthenticated()
-                    && resource.data.customerId == request.auth.uid;
       allow delete: if isAdmin()
-                    || (isAuthenticated() && resource.data.customerId == request.auth.uid);
+        || (isActiveUser() && resource.data.customerId == request.auth.uid);
     }
 
-
-    // ===== COLLECTION: services =====
+    // Add-on catalog is managed centrally; clients only read it.
     match /services/{serviceId} {
-      // Dịch vụ kèm theo (nước, bóng, áo...) — ai cũng đọc
-      allow read: if isAuthenticated();
-      // Chỉ Admin hoặc Owner tạo/sửa
-      allow write: if isAdmin() || isOwner();
+      allow read: if isActiveUser();
+      allow write: if isAdmin();
     }
 
-
-    // ===== COLLECTION: employees =====
     match /employees/{empId} {
-      // Chỉ Admin xem & quản lý nhân viên
       allow read, write: if isAdmin();
     }
 
-
-    // ===== COLLECTION: fcm_queue =====
-    // Queue xử lý bởi Cloud Functions — gửi push notification
+    // Queue is append-only from the client. Processing is backend-only.
     match /fcm_queue/{queueId} {
-      // Hệ thống ghi (từ client khi đặt sân, duyệt đơn...)
-      allow create: if isAuthenticated();
-      // Cloud Functions đọc & đánh dấu processed
-      allow read, update: if isAdmin();
-      allow delete: if isAdmin();
+      allow create: if isActiveUser()
+        && request.resource.data.keys().hasOnly([
+          'type', 'bookingId', 'customerId', 'customerName',
+          'pitchName', 'time', 'date', 'ownerId', 'processed', 'createdAt'
+        ])
+        && request.resource.data.type is string
+        && request.resource.data.bookingId is string
+        && request.resource.data.customerId is string
+        && request.resource.data.processed == false
+        && getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.customerId == request.resource.data.customerId;
+      allow read, update, delete: if false;
     }
-
   }
 }

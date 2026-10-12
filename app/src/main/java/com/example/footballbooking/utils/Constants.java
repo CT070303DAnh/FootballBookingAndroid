@@ -28,6 +28,10 @@ public final class Constants {
     public static final String ROLE_OWNER         = "owner";         // Chủ sân
     public static final String ROLE_OWNER_PENDING = "owner_pending"; // Chủ sân chờ Admin duyệt
 
+    public static final String OWNER_APPLICATION_PENDING  = "pending";
+    public static final String OWNER_APPLICATION_APPROVED = "approved";
+    public static final String OWNER_APPLICATION_REJECTED = "rejected";
+
     // ===== OWNER PAYMENT INFO =====
     // Mặc định dùng để nhận tiền đặt sân. Số tài khoản là số điện thoại chủ sân.
     public static final String DEFAULT_OWNER_BANK_NAME = "MB Bank";
@@ -74,6 +78,13 @@ public final class Constants {
     public static final String PITCH_MAINTENANCE = "maintenance";
     public static final String PITCH_CLOSED      = "closed";
     public static final String PITCH_SUSPENDED   = "suspended";
+
+    // Separate moderation state from operational availability.
+    public static final String PITCH_MODERATION_PENDING   = "pending";
+    public static final String PITCH_MODERATION_APPROVED  = "approved";
+    public static final String PITCH_MODERATION_REJECTED  = "rejected";
+    public static final String PITCH_MODERATION_SUSPENDED = "suspended";
+    public static final String PITCH_MODERATION_ARCHIVED  = "archived";
 
     // ===== USER STATUS =====
     public static final String STATUS_ACTIVE     = "active";
