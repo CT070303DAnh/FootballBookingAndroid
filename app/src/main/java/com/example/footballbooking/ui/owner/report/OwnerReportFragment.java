@@ -27,6 +27,7 @@ import com.google.android.material.snackbar.Snackbar;
 
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
@@ -44,6 +45,7 @@ public class OwnerReportFragment extends Fragment {
     private final Calendar reportCalendar = Calendar.getInstance();
     private final NumberFormat currencyFmt =
             NumberFormat.getNumberInstance(new Locale("vi", "VN"));
+    private List<String> revenueBucketLabels = new ArrayList<>();
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -64,6 +66,8 @@ public class OwnerReportFragment extends Fragment {
         // không thuộc phạm vi báo cáo của chủ sân.
         binding.layoutAdminKpis.setVisibility(View.GONE);
         binding.layoutOwnerKpis.setVisibility(View.VISIBLE);
+        binding.tvRevenueChartTitle.setText("Doanh thu theo mốc 5 ngày (nghìn đồng)");
+        binding.tvBookingChartTitle.setText("Số đơn theo mốc 5 ngày");
         // Chủ sân không cần biểu đồ tỷ lệ trạng thái đơn.
         binding.cardStatusDistribution.setVisibility(View.GONE);
         binding.cardBookingsByDay.setVisibility(View.VISIBLE);
@@ -117,8 +121,9 @@ public class OwnerReportFragment extends Fragment {
         binding.tvRevenueBookings.setText(ownerViewModel.countRevenueBookings(bookings) + " đơn");
         binding.tvUnpaidBookings.setText(ownerViewModel.countUnpaidApprovedBookings(bookings) + " đơn");
 
-        updateBarChart(ownerViewModel.buildRevenueBarEntries(bookings));
-        updateLineChart(ownerViewModel.buildBookingCountEntries(bookings));
+        revenueBucketLabels = ownerViewModel.buildFiveDayBucketLabels(bookings);
+        updateBarChart(ownerViewModel.buildFiveDayRevenueBarEntries(bookings));
+        updateLineChart(ownerViewModel.buildFiveDayBookingCountEntries(bookings));
         binding.cardStatusDistribution.setVisibility(View.GONE);
         binding.cardBookingsByDay.setVisibility(View.VISIBLE);
     }
@@ -131,7 +136,7 @@ public class OwnerReportFragment extends Fragment {
         binding.barChartRevenue.getXAxis().setTextColor(Color.GRAY);
         binding.barChartRevenue.getXAxis().setPosition(XAxis.XAxisPosition.BOTTOM);
         binding.barChartRevenue.getXAxis().setDrawGridLines(false);
-        configureDayAxis();
+        configureFiveDayAxis(binding.barChartRevenue.getXAxis());
         binding.barChartRevenue.getAxisLeft().setTextColor(Color.GRAY);
         binding.barChartRevenue.getAxisLeft().setGridColor(0x22FFFFFF);
         binding.barChartRevenue.getAxisRight().setEnabled(false);
@@ -143,14 +148,18 @@ public class OwnerReportFragment extends Fragment {
         binding.lineChartBookings.getXAxis().setTextColor(Color.GRAY);
         binding.lineChartBookings.getXAxis().setPosition(XAxis.XAxisPosition.BOTTOM);
         binding.lineChartBookings.getXAxis().setDrawGridLines(false);
-        configureBookingDayAxis();
+        configureFiveDayAxis(binding.lineChartBookings.getXAxis());
         binding.lineChartBookings.getAxisLeft().setTextColor(Color.GRAY);
         binding.lineChartBookings.getAxisLeft().setGridColor(0x22FFFFFF);
         binding.lineChartBookings.getAxisRight().setEnabled(false);
     }
 
     private void updateBarChart(List<BarEntry> entries) {
-        if (entries.isEmpty()) { binding.barChartRevenue.clear(); return; }
+        if (entries.isEmpty()) {
+            binding.barChartRevenue.clear();
+            configureFiveDayAxis(binding.barChartRevenue.getXAxis());
+            return;
+        }
         BarDataSet dataSet = new BarDataSet(entries, "Doanh thu");
         dataSet.setColor(0xFFFF9800);  // Màu cam — phân biệt với Admin xanh lá
         dataSet.setValueTextColor(Color.WHITE);
@@ -159,43 +168,25 @@ public class OwnerReportFragment extends Fragment {
         BarData barData = new BarData(dataSet);
         barData.setBarWidth(0.7f);
         binding.barChartRevenue.setData(barData);
-        configureDayAxis();
+        configureFiveDayAxis(binding.barChartRevenue.getXAxis());
         binding.barChartRevenue.animateY(800, Easing.EaseInOutQuart);
         binding.barChartRevenue.invalidate();
     }
 
-    /** Trục X luôn dùng ngày trong tháng: 1, 2, 3... đến ngày cuối tháng. */
-    private void configureDayAxis() {
-        int daysInMonth = reportCalendar.getActualMaximum(Calendar.DAY_OF_MONTH);
-        XAxis axis = binding.barChartRevenue.getXAxis();
+    /** Trục X hiển thị đầy đủ các mốc 5 ngày trong tháng. */
+    private void configureFiveDayAxis(XAxis axis) {
+        int visibleBucketCount = revenueBucketLabels.size();
         axis.setGranularity(1f);
         axis.setGranularityEnabled(true);
-        axis.setAxisMinimum(1f);
-        axis.setAxisMaximum(daysInMonth);
-        axis.setLabelCount(daysInMonth, true);
+        axis.setAxisMinimum(visibleBucketCount > 0 ? 0.5f : 1f);
+        axis.setAxisMaximum(visibleBucketCount > 0 ? visibleBucketCount + 0.5f : 1f);
+        axis.setLabelCount(Math.max(1, visibleBucketCount), true);
         axis.setValueFormatter(new ValueFormatter() {
             @Override
             public String getFormattedValue(float value) {
-                int day = Math.round(value);
-                return day >= 1 && day <= daysInMonth ? String.valueOf(day) : "";
-            }
-        });
-    }
-
-    /** Trục X của số đơn cũng dùng đúng từng ngày trong tháng. */
-    private void configureBookingDayAxis() {
-        int daysInMonth = reportCalendar.getActualMaximum(Calendar.DAY_OF_MONTH);
-        XAxis axis = binding.lineChartBookings.getXAxis();
-        axis.setGranularity(1f);
-        axis.setGranularityEnabled(true);
-        axis.setAxisMinimum(1f);
-        axis.setAxisMaximum(daysInMonth);
-        axis.setLabelCount(daysInMonth, true);
-        axis.setValueFormatter(new ValueFormatter() {
-            @Override
-            public String getFormattedValue(float value) {
-                int day = Math.round(value);
-                return day >= 1 && day <= daysInMonth ? String.valueOf(day) : "";
+                int index = Math.round(value) - 1;
+                return index >= 0 && index < revenueBucketLabels.size()
+                        ? revenueBucketLabels.get(index) : "";
             }
         });
     }
@@ -203,6 +194,7 @@ public class OwnerReportFragment extends Fragment {
     private void updateLineChart(List<Entry> entries) {
         if (entries == null || entries.isEmpty()) {
             binding.lineChartBookings.clear();
+            configureFiveDayAxis(binding.lineChartBookings.getXAxis());
             return;
         }
 
@@ -220,7 +212,7 @@ public class OwnerReportFragment extends Fragment {
         dataSet.setFillAlpha(80);
 
         binding.lineChartBookings.setData(new LineData(dataSet));
-        configureBookingDayAxis();
+        configureFiveDayAxis(binding.lineChartBookings.getXAxis());
         binding.lineChartBookings.animateX(600);
         binding.lineChartBookings.invalidate();
     }

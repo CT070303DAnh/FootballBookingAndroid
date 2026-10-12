@@ -5,6 +5,9 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
@@ -33,8 +36,31 @@ public class AdminDashboardActivity extends AppCompatActivity {
         binding = ActivityAdminDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        applySystemBarInsets();
         setupNavigation();
         setupLogout();
+    }
+
+    /**
+     * Android 15+ dùng edge-to-edge mặc định với target SDK mới.
+     * Cộng inset status/navigation bar để AppBar và nút logout không bị che.
+     */
+    private void applySystemBarInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarAdmin, (view, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+            view.setPadding(view.getPaddingLeft(), systemBars.top,
+                    view.getPaddingRight(), view.getPaddingBottom());
+            return insets;
+        });
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.bottomNavAdmin, (view, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+            view.setPadding(view.getPaddingLeft(), view.getPaddingTop(),
+                    view.getPaddingRight(), systemBars.bottom);
+            return insets;
+        });
+
+        ViewCompat.requestApplyInsets(binding.getRoot());
     }
 
     private void setupNavigation() {

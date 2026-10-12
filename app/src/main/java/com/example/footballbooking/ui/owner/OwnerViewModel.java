@@ -151,32 +151,39 @@ public class OwnerViewModel extends ViewModel {
         ownerRepository.getMyBookingsByMonth(currentOwner.getUid(), yearMonth, reportBookings);
     }
 
-    /** Build BarEntry list từ danh sách booking (tái sử dụng logic từ AdminViewModel) */
-    public List<BarEntry> buildRevenueBarEntries(List<Booking> bookings) {
-        if (bookings == null) return new ArrayList<>();
-        Map<Integer, Double> dailyRevenue = new HashMap<>();
-        int daysInMonth = getDaysInReportMonth();
-        for (int day = 1; day <= daysInMonth; day++) dailyRevenue.put(day, 0.0);
-        for (Booking b : bookings) {
-            if (!isRevenueBooking(b)) continue;
-            try {
-                int day = Integer.parseInt(b.getBookingDate().split("-")[2]);
-                dailyRevenue.put(day, dailyRevenue.getOrDefault(day, 0.0) + b.getTotalAmount());
-            } catch (Exception ignored) {}
+    /** Gom doanh thu theo các tuần 1-7, 8-14... trong tháng đang xem. */
+    public List<BarEntry> buildFiveDayRevenueBarEntries(List<Booking> bookings) {
+        List<Integer> visibleBuckets = getRevenueBuckets(bookings);
+        Map<Integer, Double> bucketRevenue = new HashMap<>();
+        if (bookings != null) {
+            for (Booking booking : bookings) {
+                if (!isRevenueBooking(booking)) continue;
+                try {
+                    int day = Integer.parseInt(booking.getBookingDate().split("-")[2]);
+                    if (day < 1 || day > getDaysInReportMonth()) continue;
+                    int bucket = getFiveDayBucket(day);
+                    bucketRevenue.put(bucket,
+                            bucketRevenue.getOrDefault(bucket, 0.0) + booking.getTotalAmount());
+                } catch (Exception ignored) {
+                    // Bỏ qua dữ liệu ngày không hợp lệ.
+                }
+            }
         }
+
         List<BarEntry> entries = new ArrayList<>();
-        for (Map.Entry<Integer, Double> e : dailyRevenue.entrySet()) {
-            entries.add(new BarEntry(e.getKey(), (float)(e.getValue() / 1000)));
+        for (int index = 0; index < visibleBuckets.size(); index++) {
+            int bucket = visibleBuckets.get(index);
+            entries.add(new BarEntry(index + 1,
+                    (float) (bucketRevenue.getOrDefault(bucket, 0.0) / 1000)));
         }
-        entries.sort((a, b) -> Float.compare(a.getX(), b.getX()));
         return entries;
     }
 
-    /** Đếm tổng số đơn theo từng ngày trong tháng đang xem, bao gồm cả ngày có 0 đơn. */
-    public List<Entry> buildBookingCountEntries(List<Booking> bookings) {
+    /** Đếm đơn có doanh thu theo các tuần 1-7, 8-14... trong tháng đang xem. */
+    public List<Entry> buildFiveDayBookingCountEntries(List<Booking> bookings) {
         List<Entry> entries = new ArrayList<>();
-        int daysInMonth = getDaysInReportMonth();
-        int[] dailyCount = new int[daysInMonth + 1];
+        List<Integer> visibleBuckets = getRevenueBuckets(bookings);
+        int[] bucketCount = new int[getFiveDayBucketCount() + 1];
 
         if (bookings != null) {
             for (Booking booking : bookings) {
@@ -185,17 +192,49 @@ public class OwnerViewModel extends ViewModel {
                 if (!isRevenueBooking(booking)) continue;
                 try {
                     int day = Integer.parseInt(booking.getBookingDate().split("-")[2]);
-                    if (day >= 1 && day <= daysInMonth) dailyCount[day]++;
+                    int bucket = getFiveDayBucket(day);
+                    if (bucket >= 1 && bucket < bucketCount.length) bucketCount[bucket]++;
                 } catch (Exception ignored) {
                     // Bỏ qua dữ liệu ngày không hợp lệ.
                 }
             }
         }
 
-        for (int day = 1; day <= daysInMonth; day++) {
-            entries.add(new Entry(day, dailyCount[day]));
+        for (int index = 0; index < visibleBuckets.size(); index++) {
+            entries.add(new Entry(index + 1, bucketCount[visibleBuckets.get(index)]));
         }
         return entries;
+    }
+
+    public List<String> buildFiveDayBucketLabels(List<Booking> bookings) {
+        List<String> labels = new ArrayList<>();
+        int daysInMonth = getDaysInReportMonth();
+        for (int bucket : getRevenueBuckets(bookings)) {
+            int startDay = ((bucket - 1) * 5) + 1;
+            int endDay = Math.min(startDay + 4, daysInMonth);
+            labels.add(startDay + "-" + endDay);
+        }
+        return labels;
+    }
+
+    private List<Integer> getRevenueBuckets(List<Booking> bookings) {
+        // Giữ đủ các mốc của tháng để trục X luôn có nhãn ổn định.
+        // Mốc không có doanh thu sẽ được biểu diễn bằng giá trị 0.
+        List<Integer> buckets = new ArrayList<>();
+        for (int bucket = 1; bucket <= getFiveDayBucketCount(); bucket++) {
+            buckets.add(bucket);
+        }
+        return buckets;
+    }
+
+    private int getFiveDayBucketCount() {
+        int daysInMonth = getDaysInReportMonth();
+        return daysInMonth >= 26 ? 6 : (daysInMonth + 4) / 5;
+    }
+
+    private int getFiveDayBucket(int dayOfMonth) {
+        // Mốc cuối luôn gộp từ ngày 26 đến ngày cuối tháng.
+        return dayOfMonth >= 26 ? 6 : ((dayOfMonth - 1) / 5) + 1;
     }
 
     private int getDaysInReportMonth() {
