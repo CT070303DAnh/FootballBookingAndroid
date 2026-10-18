@@ -9,7 +9,9 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * PitchRepository — Quản lý dữ liệu sân bóng từ Firestore.
@@ -24,6 +26,7 @@ public class PitchRepository {
     // Lưu listener để detach khi ViewModel bị destroyed (tránh memory leak)
     private ListenerRegistration pitchListListener;
     private long listGeneration;
+    private String activeSearchQuery = "";
 
     private static PitchRepository instance;
 
@@ -50,6 +53,11 @@ public class PitchRepository {
      * @param result LiveData để push dữ liệu về Fragment
      */
     public void getAllPitches(MutableLiveData<Resource<List<Pitch>>> result) {
+        activeSearchQuery = "";
+        getAllPitchesInternal(result);
+    }
+
+    private void getAllPitchesInternal(MutableLiveData<Resource<List<Pitch>>> result) {
         result.setValue(Resource.loading(null));
 
         // Detach listener cũ nếu đang có (tránh duplicate)
@@ -70,9 +78,7 @@ public class PitchRepository {
                     List<Pitch> pitches = new java.util.ArrayList<>();
                     for (com.google.firebase.firestore.DocumentSnapshot doc : snapshots) {
                         Pitch p = doc.toObject(Pitch.class);
-                        if (p != null && p.isApprovedForDiscovery()
-                                && !Constants.PITCH_MAINTENANCE.equals(p.getStatus())
-                                && !Constants.PITCH_CLOSED.equals(p.getStatus())) {
+                        if (isDiscoverable(p) && matchesSearch(p)) {
                             pitches.add(p);
                         }
                     }
@@ -90,6 +96,7 @@ public class PitchRepository {
      * @param type "5", "7", hoặc "11" — dùng Constants.PITCH_TYPE_*
      */
     public void getPitchesByType(String type, MutableLiveData<Resource<List<Pitch>>> result) {
+        activeSearchQuery = "";
         result.setValue(Resource.loading(null));
         detachPitchListListener();
         final long generation = listGeneration;
@@ -106,9 +113,7 @@ public class PitchRepository {
                     if (snapshots != null) {
                         for (com.google.firebase.firestore.DocumentSnapshot doc : snapshots) {
                             Pitch p = doc.toObject(Pitch.class);
-                            if (p != null && p.isApprovedForDiscovery()
-                                    && !Constants.PITCH_MAINTENANCE.equals(p.getStatus())
-                                    && !Constants.PITCH_CLOSED.equals(p.getStatus())) {
+                            if (isDiscoverable(p) && matchesSearch(p)) {
                                 pitches.add(p);
                             }
                         }
@@ -145,39 +150,48 @@ public class PitchRepository {
     // ============================================================
 
     /**
-     * Tìm kiếm sân theo prefix tên.
-     * Firestore không hỗ trợ LIKE — dùng kỹ thuật range query.
-     * Giới hạn: chỉ tìm được prefix (bắt đầu bằng), không phải contains.
+     * Tìm kiếm sân theo một phần tên hoặc địa chỉ.
+     *
+     * Firestore range query phân biệt hoa/thường và chỉ tìm được prefix.
+     * Với quy mô hiện tại của ứng dụng, ta dùng snapshot realtime của danh sách
+     * sân rồi lọc ở client để hỗ trợ tìm gần đúng tiếng Việt: không phân biệt
+     * hoa/thường, dấu và vị trí của từ khóa.
      */
     public void searchPitchesByName(String query,
                                     MutableLiveData<Resource<List<Pitch>>> result) {
-        if (query == null || query.trim().isEmpty()) {
-            getAllPitches(result);
-            return;
-        }
+        activeSearchQuery = normalizeSearchText(query);
+        getAllPitchesInternal(result);
+    }
 
-        result.setValue(Resource.loading(null));
-        detachPitchListListener();
-        final long generation = listGeneration;
-        String normalizedQuery = query.trim();
-        // Kỹ thuật: tìm documents có name >= query VÀ name < query + "\uf8ff"
-        // "\uf8ff" là ký tự Unicode cao nhất, đảm bảo lấy hết prefix
-        String endQuery = normalizedQuery + "\uf8ff";
+    private boolean isDiscoverable(Pitch pitch) {
+        return pitch != null
+                && pitch.isApprovedForDiscovery()
+                && !Constants.PITCH_MAINTENANCE.equals(pitch.getStatus())
+                && !Constants.PITCH_CLOSED.equals(pitch.getStatus());
+    }
 
-        mDb.collection(Constants.COL_PITCHES)
-                .whereGreaterThanOrEqualTo("name", normalizedQuery)
-                .whereLessThanOrEqualTo("name", endQuery)
-                .get()
-                .addOnSuccessListener(snapshots -> {
-                    if (generation != listGeneration) return;
-                    List<Pitch> pitches = snapshots.toObjects(Pitch.class);
-                    pitches.removeIf(p -> !p.isApprovedForDiscovery()
-                            || !Constants.PITCH_AVAILABLE.equals(p.getStatus()));
-                    result.setValue(Resource.success(pitches));
-                })
-                .addOnFailureListener(e -> {
-                    if (generation == listGeneration) result.setValue(Resource.error(e.getMessage(), null));
-                });
+    private boolean matchesSearch(Pitch pitch) {
+        if (activeSearchQuery.isEmpty()) return true;
+        String searchableText = normalizeSearchText(
+                safe(pitch.getName()) + " " + safe(pitch.getAddress())
+        );
+        return searchableText.contains(activeSearchQuery);
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    /** Chuẩn hóa để tìm kiếm tiếng Việt không phân biệt hoa thường và dấu. */
+    static String normalizeSearchText(String value) {
+        if (value == null) return "";
+
+        String normalized = Normalizer.normalize(
+                value.trim().toLowerCase(Locale.ROOT),
+                Normalizer.Form.NFD
+        );
+        normalized = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        return normalized.replace('đ', 'd').replaceAll("\\s+", " ");
     }
 
     // ============================================================
