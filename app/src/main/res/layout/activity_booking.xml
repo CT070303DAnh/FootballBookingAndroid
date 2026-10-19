@@ -247,7 +247,7 @@
                     android:padding="12dp">
 
                     <com.google.android.material.radiobutton.MaterialRadioButton
-                        android:id="@+id/rb_vnpay"
+                        android:id="@+id/rb_payos"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="💳 Thanh toán ngay (VietQR - PayOS)"

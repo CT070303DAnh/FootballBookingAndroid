@@ -281,8 +281,7 @@ public class BookingHistoryFragment extends Fragment
     }
 
     private boolean isOnlinePayment(String paymentMethod) {
-        return Constants.METHOD_PAYOS.equals(paymentMethod)
-                || Constants.METHOD_VNPAY.equals(paymentMethod);
+        return Constants.METHOD_PAYOS.equals(paymentMethod);
     }
 
     private void showEmpty(boolean empty) {

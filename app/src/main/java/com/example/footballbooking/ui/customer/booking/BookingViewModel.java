@@ -298,8 +298,7 @@ public class BookingViewModel extends ViewModel {
             return;
         }
         if (!Constants.METHOD_CASH.equals(paymentMethod)
-                && !Constants.METHOD_PAYOS.equals(paymentMethod)
-                && !Constants.METHOD_VNPAY.equals(paymentMethod)) {
+                && !Constants.METHOD_PAYOS.equals(paymentMethod)) {
             createBookingResult.setValue(Resource.error("Phương thức thanh toán không hợp lệ", null));
             return;
         }

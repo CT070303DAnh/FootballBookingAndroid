@@ -80,7 +80,7 @@ public class BookingActivity extends AppCompatActivity
 
     private void setupPaymentMethodSelection() {
         binding.rgPaymentMethod.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == binding.rbVnpay.getId()) {
+            if (checkedId == binding.rbPayos.getId()) {
                 binding.btnConfirmBooking.setText("Xác nhận và Thanh toán (VietQR) 💳");
             } else if (checkedId == binding.rbCash.getId()) {
                 binding.btnConfirmBooking.setText("Xác nhận đặt sân (Tiền mặt) 💵");
@@ -290,8 +290,7 @@ public class BookingActivity extends AppCompatActivity
 
             if (resource.isSuccess() && resource.data != null) {
                 com.example.footballbooking.data.model.Booking createdBooking = resource.data;
-                if (Constants.METHOD_PAYOS.equals(createdBooking.getPaymentMethod())
-                        || Constants.METHOD_VNPAY.equals(createdBooking.getPaymentMethod())) {
+                if (Constants.METHOD_PAYOS.equals(createdBooking.getPaymentMethod())) {
                     android.content.Intent intent = new android.content.Intent(this,
                             com.example.footballbooking.ui.customer.payment.PaymentActivity.class);
                     intent.putExtra(Constants.EXTRA_BOOKING_ID, createdBooking.getBookingId());

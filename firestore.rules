@@ -479,34 +479,11 @@ service cloud.firestore {
 
     // ===== REVIEWS =====
     match /reviews/{reviewId} {
+      // Review ghi/ sửa/ xóa phải đi qua Backend API.
+      // Backend dùng Firebase Admin SDK và cập nhật rating/totalReviews trong
+      // cùng transaction với review, nên không bị giới hạn bởi Rules này.
       allow read: if isActiveUser();
-
-      allow create: if isCustomer()
-        && request.resource.data.keys().hasOnly([
-          'bookingId', 'customerId', 'customerName', 'customerAvatar',
-          'pitchId', 'rating', 'comment', 'imageUrls', 'createdAt'
-        ])
-        && request.resource.data.customerId == request.auth.uid
-        && request.resource.data.bookingId is string
-        && request.resource.data.pitchId is string
-        && request.resource.data.rating is number
-        && request.resource.data.rating >= 1
-        && request.resource.data.rating <= 5
-        && request.resource.data.comment is string
-        && request.resource.data.comment.size() <= 1000
-        && exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId))
-        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.customerId == request.auth.uid
-        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.pitchId == request.resource.data.pitchId
-        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.bookingStatus == 'approved'
-        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.matchStatus == 'finished';
-
-      allow update: if isCustomer()
-        && resource.data.customerId == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['rating', 'comment', 'imageUrls']);
-
-      allow delete: if isAdmin()
-        || (isActiveUser() && resource.data.customerId == request.auth.uid);
+      allow create, update, delete: if false;
     }
 
     // Add-on catalog is managed centrally; clients only read it.

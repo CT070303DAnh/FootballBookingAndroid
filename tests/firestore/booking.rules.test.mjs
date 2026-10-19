@@ -67,6 +67,22 @@ test('profiles are private while availability remains readable by active users',
   await assertFails(getDoc(doc(dbFor('blocked'), dayPath)));
 });
 
+test('review writes are backend-only while clients can still read reviews', async () => {
+  await seed('reviews/review-1', {
+    reviewId: 'review-1', bookingId: 'b1', customerId: 'customer',
+    pitchId: 'pitch', rating: 5, comment: 'Great pitch', imageUrls: [],
+  });
+  for (const uid of ['customer', 'owner', 'admin']) {
+    await assertSucceeds(getDoc(doc(dbFor(uid), 'reviews/review-1')));
+    await assertFails(setDoc(doc(dbFor(uid), 'reviews/review-new'), {
+      bookingId: 'b1', customerId: uid, pitchId: 'pitch', rating: 5,
+      comment: 'Client write must be rejected', imageUrls: [],
+    }));
+    await assertFails(updateDoc(doc(dbFor(uid), 'reviews/review-1'), { rating: 1 }));
+    await assertFails(deleteDoc(doc(dbFor(uid), 'reviews/review-1')));
+  }
+});
+
 test('blocked owners cannot edit services or create reviews', async () => {
   await seed('users/owner', {uid:'owner', role:'owner', status:'blocked'});
   await assertFails(setDoc(doc(dbFor('owner'), 'services/test'), {name:'test', price:1, isActive:true}));
