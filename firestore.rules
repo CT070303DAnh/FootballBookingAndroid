@@ -190,6 +190,142 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // ===== CHAT =====
+    // Một conversation đại diện cho một cặp customer-owner. Các booking và
+    // thay đổi trạng thái được ghi thành system event trong hội thoại đó.
+    function chatBookingPath(bookingId) {
+      return /databases/$(database)/documents/bookings/$(bookingId);
+    }
+
+    function conversationPath(conversationId) {
+      return /databases/$(database)/documents/conversations/$(conversationId);
+    }
+
+    function chatBookingExists(bookingId) {
+      return exists(chatBookingPath(bookingId)) || existsAfter(chatBookingPath(bookingId));
+    }
+
+    function chatBookingData(bookingId) {
+      return exists(chatBookingPath(bookingId))
+        ? get(chatBookingPath(bookingId)).data
+        : getAfter(chatBookingPath(bookingId)).data;
+    }
+
+    function isBookingParty(bookingId) {
+      return isActiveUser()
+        && chatBookingExists(bookingId)
+        && (chatBookingData(bookingId).get('customerId', '') == request.auth.uid
+          || chatBookingData(bookingId).get('pitchOwnerId', '') == request.auth.uid);
+    }
+
+    function isInboxParticipant() {
+      return isActiveUser()
+        && resource.data.get('status', '') == 'active'
+        && request.auth.uid in resource.data.get('participants', []);
+    }
+
+    // One conversation per booking. Unread counters are owned by the
+    // corresponding participant and are never writable by the other side.
+    function validLegacyConversationCreate(bookingId) {
+      let booking = chatBookingData(bookingId);
+      return isBookingParty(bookingId)
+        && request.resource.data.keys().hasOnly([
+          'bookingId', 'customerId', 'ownerId', 'pitchId', 'participants',
+          'pitchName', 'customerName', 'bookingDate', 'startTime', 'endTime',
+          'status', 'lastMessage', 'lastSenderId', 'lastMessageAt',
+           'createdAt', 'updatedAt', 'unreadForCustomer', 'unreadForOwner'
+        ])
+        && request.resource.data.bookingId == bookingId
+        && request.resource.data.customerId == booking.get('customerId', '')
+        && request.resource.data.ownerId == booking.get('pitchOwnerId', '')
+        && request.resource.data.pitchId == booking.get('pitchId', '')
+        && request.resource.data.participants == [
+          booking.get('customerId', ''), booking.get('pitchOwnerId', '')
+        ]
+        && request.resource.data.pitchName is string
+        && request.resource.data.pitchName.size() > 0
+        && request.resource.data.pitchName.size() <= 200
+        && request.resource.data.customerName is string
+        && request.resource.data.customerName.size() > 0
+        && request.resource.data.customerName.size() <= 150
+        && request.resource.data.bookingDate is string
+        && request.resource.data.bookingDate.size() <= 20
+        && request.resource.data.startTime is string
+        && request.resource.data.startTime.size() <= 10
+        && request.resource.data.endTime is string
+        && request.resource.data.endTime.size() <= 10
+        && request.resource.data.status == 'active'
+        && request.resource.data.lastMessage == ''
+        && request.resource.data.lastSenderId == ''
+        && request.resource.data.unreadForCustomer == 0
+        && request.resource.data.unreadForOwner == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastMessageAt == request.time;
+    }
+
+    function validLegacyMessageUpdate(bookingId) {
+      let booking = chatBookingData(bookingId);
+      let senderIsCustomer = booking.get('customerId', '') == request.auth.uid;
+      let senderIsOwner = booking.get('pitchOwnerId', '') == request.auth.uid;
+      return isBookingParty(bookingId)
+        && (senderIsCustomer || senderIsOwner)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'lastMessage', 'lastSenderId', 'lastMessageAt', 'updatedAt',
+          'unreadForCustomer', 'unreadForOwner'
+        ])
+        && request.resource.data.lastMessage is string
+        && request.resource.data.lastMessage.size() > 0
+        && request.resource.data.lastMessage.size() <= 1000
+        && request.resource.data.lastSenderId == request.auth.uid
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.get('unreadForCustomer', 0)
+          == resource.data.get('unreadForCustomer', 0)
+            + (senderIsOwner ? 1 : 0)
+        && request.resource.data.get('unreadForOwner', 0)
+          == resource.data.get('unreadForOwner', 0)
+            + (senderIsCustomer ? 1 : 0);
+    }
+
+    function validLegacyReadUpdate(bookingId) {
+      let booking = chatBookingData(bookingId);
+      let isCustomerReader = booking.get('customerId', '') == request.auth.uid;
+      let isOwnerReader = booking.get('pitchOwnerId', '') == request.auth.uid;
+      return isBookingParty(bookingId)
+        && (isCustomerReader || isOwnerReader)
+        && (
+          (isCustomerReader
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['unreadForCustomer'])
+            && request.resource.data.get('unreadForCustomer', 0) == 0)
+          ||
+          (isOwnerReader
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['unreadForOwner'])
+            && request.resource.data.get('unreadForOwner', 0) == 0)
+        );
+    }
+
+    function validLegacyConversationUpdate(bookingId) {
+      return validLegacyMessageUpdate(bookingId)
+        || validLegacyReadUpdate(bookingId);
+    }
+
+    function validLegacyChatMessageCreate(bookingId) {
+      return isBookingParty(bookingId)
+        && exists(conversationPath(bookingId))
+        && request.resource.data.keys().hasOnly([
+          'senderId', 'content', 'type', 'createdAt'
+        ])
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 1000
+        && request.resource.data.type == 'text'
+        && request.resource.data.createdAt == request.time;
+    }
+
     // Calendar strings are interpreted in Vietnam time.
     function startOfBooking(b) {
       let d = b.bookingDate.split('-');
@@ -466,6 +602,22 @@ service cloud.firestore {
       // identity fields are immutable from the client.
       allow update: if validBookingUpdate(resource.data, request.resource.data, bookingId);
       allow delete: if false;
+    }
+
+    // ===== CONVERSATIONS =====
+    // Document ID = bookingId: mỗi đơn đặt sân là một hội thoại riêng.
+    match /conversations/{conversationId} {
+      allow get: if isInboxParticipant() || isBookingParty(conversationId);
+      allow list: if isInboxParticipant();
+      allow create: if validLegacyConversationCreate(conversationId);
+      allow update: if validLegacyConversationUpdate(conversationId);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isInboxParticipant() || isBookingParty(conversationId);
+        allow create: if validLegacyChatMessageCreate(conversationId);
+        allow update, delete: if false;
+      }
     }
 
     // Payment documents are backend-only. The Android client must use the API.

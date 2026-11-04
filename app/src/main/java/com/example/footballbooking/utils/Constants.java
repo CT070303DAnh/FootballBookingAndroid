@@ -16,11 +16,13 @@ public final class Constants {
     public static final String COL_REVIEWS        = "reviews";
     public static final String COL_EMPLOYEES      = "employees";
     public static final String COL_NOTIFICATIONS  = "notifications";
+    public static final String COL_CONVERSATIONS  = "conversations";
 
     // Sub-collections
     public static final String SUB_TIME_SLOTS      = "timeSlots";
     public static final String SUB_AVAILABILITY    = "availability";
     public static final String SUB_BOOKING_HISTORY = "bookingHistory";
+    public static final String SUB_MESSAGES        = "messages";
 
     // ===== USER ROLES =====
     public static final String ROLE_CUSTOMER      = "customer";
@@ -100,6 +102,7 @@ public final class Constants {
     // ===== INTENT EXTRAS =====
     public static final String EXTRA_PITCH_ID   = "extra_pitch_id";
     public static final String EXTRA_BOOKING_ID = "extra_booking_id";
+    public static final String EXTRA_CONVERSATION_ID = "extra_conversation_id";
     public static final String EXTRA_BOOKING_DATE = "extra_booking_date";
     public static final String EXTRA_SLOT_ID = "extra_slot_id";
     public static final String EXTRA_USER_ROLE  = "extra_user_role";

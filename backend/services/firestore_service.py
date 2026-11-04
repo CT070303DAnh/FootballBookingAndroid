@@ -334,4 +334,5 @@ def create_booking_transactionally(uid: str, pending: dict[str, Any]) -> dict[st
         })
         return {"bookingId": booking_ref.id, **booking}
 
-    return commit(transaction)
+    result = commit(transaction)
+    return result

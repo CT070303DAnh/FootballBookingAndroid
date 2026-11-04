@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.example.footballbooking.data.model.Booking;
 import com.example.footballbooking.data.repository.ReviewRepository;
 import com.example.footballbooking.databinding.FragmentBookingHistoryBinding;
+import com.example.footballbooking.ui.common.chat.ChatActivity;
 import com.example.footballbooking.ui.common.adapter.BookingAdapter;
 import com.example.footballbooking.utils.Constants;
 import com.example.footballbooking.utils.Resource;
@@ -227,6 +228,15 @@ public class BookingHistoryFragment extends Fragment
                     dialog.dismiss();
                 }));
         dialog.show();
+    }
+
+    @Override
+    public void onChatClick(Booking booking) {
+        if (booking == null || booking.getBookingId() == null) return;
+        android.content.Intent intent = new android.content.Intent(
+                requireContext(), ChatActivity.class);
+        intent.putExtra(Constants.EXTRA_BOOKING_ID, booking.getBookingId());
+        startActivity(intent);
     }
 
     @Override

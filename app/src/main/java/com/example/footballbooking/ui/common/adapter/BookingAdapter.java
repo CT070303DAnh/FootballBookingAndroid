@@ -33,6 +33,7 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
         void onCancelClick(Booking booking);
         void onBookingClick(Booking booking);
         void onReviewClick(Booking booking);
+        void onChatClick(Booking booking);
     }
 
     private final OnBookingActionListener listener;
@@ -141,6 +142,15 @@ public class BookingAdapter extends ListAdapter<Booking, BookingAdapter.BookingV
                     ? android.view.View.VISIBLE : android.view.View.GONE);
             b.btnReviewBooking.setOnClickListener(v -> {
                 if (listener != null) listener.onReviewClick(booking);
+            });
+
+            boolean canChat = booking.getBookingId() != null
+                    && (Constants.STATUS_PENDING.equals(booking.getBookingStatus())
+                    || Constants.STATUS_APPROVED.equals(booking.getBookingStatus()));
+            b.btnChatOwner.setVisibility(canChat
+                    ? android.view.View.VISIBLE : android.view.View.GONE);
+            b.btnChatOwner.setOnClickListener(v -> {
+                if (listener != null) listener.onChatClick(booking);
             });
 
             b.getRoot().setOnClickListener(v -> {

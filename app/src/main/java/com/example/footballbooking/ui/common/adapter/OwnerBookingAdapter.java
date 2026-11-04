@@ -27,6 +27,7 @@ public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapte
         void onReject(Booking booking);
         void onMatchStatusChange(String bookingId, String newStatus);
         void onConfirmCashPayment(Booking booking);
+        void onChatClick(Booking booking);
     }
 
     private final OnOwnerBookingActionListener listener;
@@ -120,6 +121,13 @@ public class OwnerBookingAdapter extends ListAdapter<Booking, OwnerBookingAdapte
                 b.btnMatchPlaying.setOnClickListener(v -> listener.onMatchStatusChange(bk.getBookingId(), Constants.MATCH_PLAYING));
                 b.btnMatchFinished.setOnClickListener(v -> listener.onMatchStatusChange(bk.getBookingId(), Constants.MATCH_FINISHED));
             }
+
+            boolean canChat = bk.getBookingId() != null
+                    && (Constants.STATUS_PENDING.equals(bk.getBookingStatus()) || isApproved);
+            b.layoutChat.setVisibility(canChat ? View.VISIBLE : View.GONE);
+            b.btnChatCustomer.setOnClickListener(v -> {
+                if (listener != null) listener.onChatClick(bk);
+            });
 
             boolean canConfirmCash = isApproved
                     && Constants.METHOD_CASH.equals(bk.getPaymentMethod())

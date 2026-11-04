@@ -13,9 +13,14 @@ import androidx.navigation.ui.NavigationUI;
 
 import com.example.footballbooking.R;
 import com.example.footballbooking.data.model.User;
+import com.example.footballbooking.data.repository.ChatRepository;
 import com.example.footballbooking.data.repository.AuthRepository;
 import com.example.footballbooking.databinding.ActivityOwnerDashboardBinding;
 import com.example.footballbooking.utils.Constants;
+import com.google.android.material.badge.BadgeDrawable;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.android.material.snackbar.Snackbar;
 
 /**
@@ -33,6 +38,7 @@ public class OwnerDashboardActivity extends AppCompatActivity {
     private ActivityOwnerDashboardBinding binding;
     private NavController navController;
     private OwnerViewModel ownerViewModel;
+    private ListenerRegistration unreadMessagesListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,6 +119,44 @@ public class OwnerDashboardActivity extends AppCompatActivity {
         if (navHostFragment != null) {
             navController = navHostFragment.getNavController();
             NavigationUI.setupWithNavController(binding.bottomNavOwner, navController);
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        startUnreadMessagesListener();
+    }
+
+    @Override
+    protected void onStop() {
+        stopUnreadMessagesListener();
+        super.onStop();
+    }
+
+    private void startUnreadMessagesListener() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+        unreadMessagesListener = new ChatRepository().listenUnreadCount(user.getUid(),
+                (count, error) -> renderUnreadBadge(error == null && count != null ? count : 0));
+    }
+
+    private void stopUnreadMessagesListener() {
+        if (unreadMessagesListener != null) {
+            unreadMessagesListener.remove();
+            unreadMessagesListener = null;
+        }
+    }
+
+    private void renderUnreadBadge(int count) {
+        if (binding == null || binding.bottomNavOwner == null) return;
+        BadgeDrawable badge = binding.bottomNavOwner.getOrCreateBadge(R.id.nav_owner_chat);
+        if (count > 0) {
+            badge.setVisible(true);
+            badge.setNumber(count);
+        } else {
+            badge.clearNumber();
+            badge.setVisible(false);
         }
     }
 

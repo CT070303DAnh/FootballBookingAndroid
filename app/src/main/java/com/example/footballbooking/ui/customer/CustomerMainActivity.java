@@ -13,8 +13,13 @@ import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
 
 import com.example.footballbooking.R;
+import com.example.footballbooking.data.repository.ChatRepository;
 import com.example.footballbooking.databinding.ActivityCustomerMainBinding;
 import com.example.footballbooking.ui.auth.LoginActivity;
+import com.google.android.material.badge.BadgeDrawable;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.ListenerRegistration;
 
 /**
  * CustomerMainActivity — Activity chứa BottomNavigationView + NavHostFragment.
@@ -30,6 +35,7 @@ public class CustomerMainActivity extends AppCompatActivity {
 
     private ActivityCustomerMainBinding binding;
     private NavController navController;
+    private ListenerRegistration unreadMessagesListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,6 +103,44 @@ public class CustomerMainActivity extends AppCompatActivity {
         }
             }
         });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        startUnreadMessagesListener();
+    }
+
+    @Override
+    protected void onStop() {
+        stopUnreadMessagesListener();
+        super.onStop();
+    }
+
+    private void startUnreadMessagesListener() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+        unreadMessagesListener = new ChatRepository().listenUnreadCount(user.getUid(),
+                (count, error) -> renderUnreadBadge(error == null && count != null ? count : 0));
+    }
+
+    private void stopUnreadMessagesListener() {
+        if (unreadMessagesListener != null) {
+            unreadMessagesListener.remove();
+            unreadMessagesListener = null;
+        }
+    }
+
+    private void renderUnreadBadge(int count) {
+        if (binding == null || binding.bottomNav == null) return;
+        BadgeDrawable badge = binding.bottomNav.getOrCreateBadge(R.id.nav_chat);
+        if (count > 0) {
+            badge.setVisible(true);
+            badge.setNumber(count);
+        } else {
+            badge.clearNumber();
+            badge.setVisible(false);
+        }
     }
 
     /** Chuyển tab trên BottomNavigationView một cách chuẩn xác */

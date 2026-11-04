@@ -15,6 +15,16 @@
         android:label="Đơn đặt sân" />
 
     <fragment
+        android:id="@+id/nav_owner_chat"
+        android:name="com.example.footballbooking.ui.common.chat.ChatInboxFragment"
+        android:label="Tin nhắn">
+        <argument
+            android:name="ownerMode"
+            android:defaultValue="true"
+            app:argType="boolean" />
+    </fragment>
+
+    <fragment
         android:id="@+id/nav_owner_report"
         android:name="com.example.footballbooking.ui.owner.report.OwnerReportFragment"
         android:label="Báo cáo doanh thu" />

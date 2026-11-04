@@ -182,7 +182,14 @@ public class BookingRepository {
             fcm.put("createdAt", FieldValue.serverTimestamp());
             tx.set(notificationRef, fcm);
             return booking;
-        }).addOnSuccessListener(value -> result.setValue(Resource.success(value)))
+        }).addOnSuccessListener(value -> {
+            // Tạo hội thoại gắn với đúng đơn đặt sân ngay khi đơn phát sinh.
+            new ChatRepository().ensureConversationForBooking(value)
+                    .addOnFailureListener(error ->
+                            android.util.Log.w("BookingRepository",
+                                    "Không đồng bộ hội thoại booking vào chat", error));
+            result.setValue(Resource.success(value));
+        })
           .addOnFailureListener(e -> result.setValue(Resource.error("Đặt sân thất bại: " + e.getMessage(), null)));
     }
 
@@ -231,7 +238,7 @@ public class BookingRepository {
     public com.google.android.gms.tasks.Task<Void> transitionBooking(String bookingId, String target, String reason) {
         com.google.firebase.firestore.DocumentReference ref = mDb.collection(Constants.COL_BOOKINGS).document(bookingId);
         com.google.firebase.firestore.DocumentReference notificationRef = mDb.collection("fcm_queue").document();
-        return mDb.runTransaction(tx -> {
+        com.google.android.gms.tasks.Task<Void> transitionTask = mDb.runTransaction(tx -> {
             Booking current = tx.get(ref).toObject(Booking.class);
             if (current == null) throw new IllegalStateException("Không tìm thấy đơn đặt sân");
             current.setBookingId(bookingId);
@@ -269,6 +276,7 @@ public class BookingRepository {
             }
             return null;
         });
+        return transitionTask;
     }
 
     // ============================================================

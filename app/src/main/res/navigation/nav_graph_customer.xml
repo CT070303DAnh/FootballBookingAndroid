@@ -33,6 +33,16 @@
         android:label="Lịch sử đặt sân" />
 
     <fragment
+        android:id="@+id/nav_chat"
+        android:name="com.example.footballbooking.ui.common.chat.ChatInboxFragment"
+        android:label="Tin nhắn">
+        <argument
+            android:name="ownerMode"
+            android:defaultValue="false"
+            app:argType="boolean" />
+    </fragment>
+
+    <fragment
         android:id="@+id/nav_profile"
         android:name="com.example.footballbooking.ui.customer.profile.ProfileFragment"
         android:label="Hồ sơ" />
