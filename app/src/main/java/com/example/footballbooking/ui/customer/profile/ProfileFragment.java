@@ -19,8 +19,15 @@ import com.example.footballbooking.data.repository.AuthRepository;
 import com.example.footballbooking.databinding.FragmentProfileBinding;
 import com.example.footballbooking.ui.auth.LoginActivity;
 import com.example.footballbooking.ui.customer.CustomerMainActivity;
+import com.example.footballbooking.ui.customer.card.MemberCardActivity;
+import com.example.footballbooking.utils.Constants;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+
+import java.text.NumberFormat;
+import java.util.Locale;
 
 /**
  * ProfileFragment — Màn hình Hồ sơ cá nhân của Customer.
@@ -31,6 +38,8 @@ public class ProfileFragment extends Fragment {
 
     private FragmentProfileBinding binding;
     private final AuthRepository authRepository = AuthRepository.getInstance();
+    private ListenerRegistration cardSummaryListener;
+    private final NumberFormat vndFormat = NumberFormat.getNumberInstance(new Locale("vi", "VN"));
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -44,7 +53,35 @@ public class ProfileFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         loadUserProfile();
+        listenMemberCardSummary();
         setupClickListeners();
+    }
+
+    private void listenMemberCardSummary() {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) return;
+
+        cardSummaryListener = FirebaseFirestore.getInstance()
+                .collection(Constants.COL_USERS)
+                .document(currentUser.getUid())
+                .addSnapshotListener((snapshot, error) -> {
+                    if (error != null || snapshot == null || !snapshot.exists() || !isAdded() || binding == null) {
+                        return;
+                    }
+                    User user = snapshot.toObject(User.class);
+                    if (user == null) return;
+                    String cardId = user.getCardId();
+                    if (cardId != null && !cardId.isEmpty()) {
+                        String statusTag = Constants.CARD_STATUS_LOST.equalsIgnoreCase(user.getCardStatus())
+                                ? " • ĐÃ BÁO MẤT"
+                                : (Constants.CARD_STATUS_LOCKED.equalsIgnoreCase(user.getCardStatus()) ? " • ĐÃ KHÓA" : "");
+                        binding.tvProfileCardId.setText("ID: " + cardId + statusTag);
+                    } else {
+                        binding.tvProfileCardId.setText("Chưa liên kết thẻ (Cấp thẻ tại quầy POS)");
+                    }
+                    binding.tvProfileCardBalance.setText("Số dư: " + vndFormat.format(user.getCardBalance()) + " đ");
+                    binding.tvProfileCardPoints.setText(user.getLoyaltyPoints() + " điểm");
+                });
     }
 
     private void loadUserProfile() {
@@ -89,6 +126,10 @@ public class ProfileFragment extends Fragment {
     }
 
     private void setupClickListeners() {
+        // Mở màn hình Thẻ thành viên thông minh
+        binding.cardMemberShortcut.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), MemberCardActivity.class)));
+
         // Mở lịch sử đặt sân
         binding.layoutMenuHistory.setOnClickListener(v -> navigateToTab(R.id.nav_history));
 
@@ -132,6 +173,10 @@ public class ProfileFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (cardSummaryListener != null) {
+            cardSummaryListener.remove();
+            cardSummaryListener = null;
+        }
         binding = null;
     }
 }

@@ -76,6 +76,11 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".ui.customer.card.MemberCardActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
             android:name=".ui.customer.payment.PaymentActivity"
             android:exported="true"
             android:launchMode="singleTop"

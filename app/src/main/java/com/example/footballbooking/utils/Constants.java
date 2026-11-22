@@ -16,6 +16,8 @@ public final class Constants {
     public static final String COL_REVIEWS        = "reviews";
     public static final String COL_EMPLOYEES      = "employees";
     public static final String COL_NOTIFICATIONS  = "notifications";
+    public static final String COL_CARD_TRANSACTIONS = "card_transactions";
+    public static final String COL_REWARDS        = "rewards";
 
     // Sub-collections
     public static final String SUB_TIME_SLOTS      = "timeSlots";
@@ -60,8 +62,14 @@ public final class Constants {
     public static final String METHOD_PAYOS     = "payos";
     /** Legacy value kept so old Firestore bookings remain readable. */
     public static final String METHOD_VNPAY     = "vnpay";
-    public static final String METHOD_CASH      = "cash";
-    public static final String METHOD_PAY_LATER = "pay_later"; // Thanh toán sau
+    public static final String METHOD_CASH        = "cash";
+    public static final String METHOD_PAY_LATER   = "pay_later"; // Thanh toán sau
+    public static final String METHOD_MEMBER_CARD = "member_card";
+
+    // ===== SMART CARD STATUS =====
+    public static final String CARD_STATUS_ACTIVE = "active";
+    public static final String CARD_STATUS_LOCKED = "locked";
+    public static final String CARD_STATUS_LOST   = "lost";
 
 
     // ===== PITCH TYPE =====

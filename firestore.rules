@@ -211,11 +211,15 @@ service cloud.firestore {
                     && request.resource.data.status == 'active';
 
       // diff kiểm tra cả trường bị thêm/xóa, không chỉ trường có trong request.
-      // User vẫn được sửa hồ sơ và đăng ký FCM, nhưng không được tự đổi quyền.
+      // User vẫn được sửa hồ sơ, đăng ký FCM, hoặc báo mất thẻ (chỉ được đặt cardStatus='lost').
       allow update: if (isActiveUser() && isOwnerOf(userId)
                         && request.resource.data.diff(resource.data).affectedKeys()
                             .hasOnly(['displayName', 'phoneNumber', 'avatarUrl',
                                       'fcmToken', 'updatedAt']))
+                    || (isActiveUser() && isOwnerOf(userId)
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['cardStatus'])
+                        && request.resource.data.cardStatus == 'lost')
                     || (isAdmin()
                         && request.resource.data.diff(resource.data).affectedKeys()
                             .hasOnly(['role', 'status', 'updatedAt'])
@@ -372,6 +376,21 @@ service cloud.firestore {
                     && getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.customerId == request.resource.data.customerId;
       // Cloud Functions đọc & đánh dấu processed
       allow read, update, delete: if false;
+    }
+
+
+    // ===== COLLECTION: card_transactions (Smart Card POS <-> Android) =====
+    match /card_transactions/{txId} {
+      allow read: if isAdmin()
+                  || (isActiveUser() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+
+    // ===== COLLECTION: rewards (Quà đổi điểm thẻ thành viên) =====
+    match /rewards/{rewardId} {
+      allow read: if isActiveUser();
+      allow write: if isAdmin();
     }
 
   }

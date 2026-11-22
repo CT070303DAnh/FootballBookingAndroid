@@ -22,6 +22,15 @@ public class User {
     private String fcmToken;    // FCM token để gửi push notification
     private String status = Constants.STATUS_ACTIVE; // "active" hoặc "blocked"
 
+    // --- Thẻ thành viên thông minh (đồng bộ với NetBeans + jCardSim) ---
+    private String cardId;
+    private double cardBalance;
+    private long loyaltyPoints;
+    private double totalSpent;
+    private String memberTier;     // "bronze", "silver", "gold", "vip"
+    private String cardStatus;     // "active", "locked", "lost"
+    private String cardPublicKey;  // RSA-1024 Public Key (Base64)
+
     @ServerTimestamp
     private Timestamp createdAt;
     @ServerTimestamp
@@ -85,4 +94,25 @@ public class User {
 
     public Timestamp getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Timestamp updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getCardId() { return cardId; }
+    public void setCardId(String cardId) { this.cardId = cardId; }
+
+    public double getCardBalance() { return cardBalance; }
+    public void setCardBalance(double cardBalance) { this.cardBalance = cardBalance; }
+
+    public long getLoyaltyPoints() { return loyaltyPoints; }
+    public void setLoyaltyPoints(long loyaltyPoints) { this.loyaltyPoints = loyaltyPoints; }
+
+    public double getTotalSpent() { return totalSpent; }
+    public void setTotalSpent(double totalSpent) { this.totalSpent = totalSpent; }
+
+    public String getMemberTier() { return memberTier; }
+    public void setMemberTier(String memberTier) { this.memberTier = memberTier; }
+
+    public String getCardStatus() { return cardStatus; }
+    public void setCardStatus(String cardStatus) { this.cardStatus = cardStatus; }
+
+    public String getCardPublicKey() { return cardPublicKey; }
+    public void setCardPublicKey(String cardPublicKey) { this.cardPublicKey = cardPublicKey; }
 }
